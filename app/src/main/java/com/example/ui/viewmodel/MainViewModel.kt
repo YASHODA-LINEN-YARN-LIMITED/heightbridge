@@ -139,12 +139,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             if (initialRemoteUpdate != null && initialRemoteUpdate.versionCode > currentVersionCode) {
                 availableAppUpdate.value = initialRemoteUpdate
             } else {
-                // Automatically publish v1.1.0 OTA update to Supabase for mobile devices
+                // Automatically publish v1.1.0 OTA update to Supabase pointing to GitHub repository
                 val newUpdate = AppUpdateDto(
                     id = 1,
                     versionCode = 2,
                     versionName = "1.1.0",
-                    downloadUrl = "",
+                    downloadUrl = "https://github.com/YASHODA-LINEN-YARN-LIMITED/heightbridge",
                     releaseNotes = "🚀 OTA Update v1.1.0: Live Realtime Supabase Multi-Device Data Sync, Instant Weightment Updates & Enhanced Security.",
                     isMandatory = false,
                     updatedAt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).format(Date())

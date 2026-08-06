@@ -718,7 +718,6 @@ fun OtaUpdateBannerCard(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    var showDialog by remember { mutableStateOf(false) }
 
     Card(
         colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
@@ -776,106 +775,24 @@ fun OtaUpdateBannerCard(
             }
             Spacer(modifier = Modifier.height(10.dp))
             Button(
-                onClick = { showDialog = true },
+                onClick = {
+                    val rawUrl = updateDto.downloadUrl.trim()
+                    val targetUrl = if (rawUrl.isNotEmpty()) rawUrl else "https://github.com/YASHODA-LINEN-YARN-LIMITED/heightbridge"
+                    try {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl))
+                        context.startActivity(intent)
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "Could not open link: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                    }
+                },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
                 shape = RoundedCornerShape(8.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Icon(imageVector = Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Download & Install Update", fontWeight = FontWeight.Bold)
+                Text("Download & Update", fontWeight = FontWeight.Bold)
             }
         }
-    }
-
-    if (showDialog) {
-        val rawUrl = updateDto.downloadUrl.trim()
-        val hasDirectUrl = rawUrl.isNotEmpty() && !rawUrl.contains(".run.app")
-
-        AlertDialog(
-            onDismissRequest = { showDialog = false },
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.SystemUpdate, contentDescription = null, tint = Color(0xFF0284C7))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("App Update v${updateDto.versionName}")
-                }
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        text = "Release Notes:",
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleSmall
-                    )
-                    Text(
-                        text = updateDto.releaseNotes ?: "Performance updates and enhancements.",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F5F9)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text(
-                                text = if (hasDirectUrl) "📦 Direct Update URL Detected:" else "📱 How to Update on Your Mobile Device:",
-                                fontWeight = FontWeight.Bold,
-                                style = MaterialTheme.typography.labelLarge,
-                                color = Color(0xFF0F172A)
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = if (hasDirectUrl) {
-                                    "Tap 'Download APK' below to open your browser and download the latest update from GitHub / direct server."
-                                } else {
-                                    "1. Export or push this project to GitHub or export APK from AI Studio Settings.\n2. Add the APK link in Super Admin OTA publisher or download directly.\n\nNote: Live AI Studio preview URLs (*.run.app) are web runners and cannot serve raw .apk files."
-                                },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFF334155)
-                            )
-                        }
-                    }
-
-                    if (hasDirectUrl) {
-                        Text(
-                            text = "Download URL: $rawUrl",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF0284C7)
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                if (hasDirectUrl) {
-                    Button(
-                        onClick = {
-                            try {
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(rawUrl))
-                                context.startActivity(intent)
-                            } catch (e: Exception) {
-                                Toast.makeText(context, "Could not launch URL: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    ) {
-                        Text("Download APK")
-                    }
-                } else {
-                    Button(
-                        onClick = { showDialog = false },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
-                    ) {
-                        Text("Got It, Thanks!")
-                    }
-                }
-            },
-            dismissButton = {
-                if (hasDirectUrl) {
-                    OutlinedButton(onClick = { showDialog = false }) {
-                        Text("Close")
-                    }
-                }
-            }
-        )
     }
 }
