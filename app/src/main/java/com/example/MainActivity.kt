@@ -1,0 +1,881 @@
+package com.example
+
+import android.content.Intent
+import android.net.Uri
+import android.os.Bundle
+import android.view.WindowManager
+import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.material.icons.filled.AdminPanelSettings
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.ElectricBolt
+import androidx.compose.material.icons.filled.FormatListNumbered
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Scale
+import androidx.compose.material.icons.filled.SystemUpdate
+import com.example.data.model.remote.AppUpdateDto
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.example.data.model.LorryWeighment
+import com.example.data.model.UserRole
+import com.example.ui.screens.ElectricWeightmentDashboard
+import com.example.ui.screens.GateOutScreen
+import com.example.ui.screens.GeoFenceRestrictionDialog
+import com.example.ui.screens.LoginScreen
+import com.example.ui.screens.MainGateDashboard
+import com.example.ui.screens.MillWeightmentDashboard
+import com.example.ui.screens.NewGateEntryScreen
+import com.example.ui.screens.PendingLorriesScreen
+import com.example.ui.screens.SuperAdminDashboard
+import com.example.ui.theme.BallyWeighbridgeTheme
+import com.example.ui.theme.IndustrialBlue
+import com.example.ui.theme.StatusGreen
+import com.example.ui.theme.StatusPurple
+import com.example.ui.theme.StatusRed
+import com.example.ui.viewmodel.MainViewModel
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        // Clear FLAG_SECURE to allow screenshots and screen recording
+        window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+
+        enableEdgeToEdge()
+
+        setContent {
+            BallyWeighbridgeTheme {
+                BallyWeighbridgeApp()
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Clear FLAG_SECURE on resume
+        window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BallyWeighbridgeApp(
+    viewModel: MainViewModel = viewModel()
+) {
+    val context = LocalContext.current
+    val currentUserRole by viewModel.currentUserRole.collectAsState()
+    val geoFenceState by viewModel.geoFenceState.collectAsState()
+    val securityState by viewModel.securityState.collectAsState()
+    val auditLogs by viewModel.auditLogs.collectAsState()
+
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val filterStatus by viewModel.filterStatus.collectAsState()
+
+    val filteredLorries by viewModel.filteredLorries.collectAsState()
+    val allLorries by viewModel.allLorriesFlow.collectAsState(initial = emptyList())
+    val stats by viewModel.dashboardStats.collectAsState()
+
+    val appUsers by viewModel.appUsersList.collectAsState()
+    val systemSettings by viewModel.systemSettings.collectAsState()
+
+    val brokersList by viewModel.brokersList.collectAsState()
+    val qualitiesList by viewModel.qualitiesList.collectAsState()
+    val mokamsList by viewModel.mokamsList.collectAsState()
+    val markasList by viewModel.markasList.collectAsState()
+
+    val toastMsg by viewModel.toastMessage.collectAsState()
+    val availableAppUpdate by viewModel.availableAppUpdate.collectAsState()
+
+    // Periodic check for auto logout due to inactivity
+    LaunchedEffect(currentUserRole) {
+        while (currentUserRole != null) {
+            kotlinx.coroutines.delay(60000L) // Check every 1 minute
+            viewModel.checkInactivityAndAutoLogout(maxInactiveMinutes = 5)
+        }
+    }
+
+    // Handle toast messages
+    LaunchedEffect(toastMsg) {
+        toastMsg?.let { msg ->
+            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+            viewModel.clearToast()
+        }
+    }
+
+    if (currentUserRole == null) {
+        LoginScreen(
+            onLoginClick = { role, pass ->
+                viewModel.login(role, pass)
+            }
+        )
+    } else {
+        key(currentUserRole) {
+            val roleNavController = rememberNavController()
+            var currentNavRoute by remember { mutableStateOf("dashboard") }
+            var activeGateOutLorry by remember { mutableStateOf<LorryWeighment?>(null) }
+            var showGeoFenceDialog by remember { mutableStateOf(false) }
+
+            val roleThemeColor = when (currentUserRole) {
+                UserRole.MAIN_GATE -> IndustrialBlue
+                UserRole.MILL_WEIGHTMENT -> StatusGreen
+            UserRole.ELECTRIC_WEIGHTMENT -> StatusPurple
+            UserRole.SUPER_ADMIN -> StatusRed
+            else -> IndustrialBlue
+        }
+
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Image(
+                                painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                                contentDescription = null,
+                                modifier = Modifier.size(36.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text(
+                                    text = "Bally Jute Mill",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimary
+                                )
+                                Text(
+                                    text = "Role: ${currentUserRole?.title}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
+                                )
+                            }
+                        }
+                    },
+                    actions = {
+                        IconButton(
+                            onClick = { viewModel.logout() },
+                            modifier = Modifier.testTag("top_app_bar_logout")
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                                contentDescription = "Logout",
+                                tint = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = roleThemeColor
+                    )
+                )
+            },
+            bottomBar = {
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 8.dp
+                ) {
+                    NavigationBarItem(
+                        selected = currentNavRoute == "dashboard",
+                        onClick = {
+                            currentNavRoute = "dashboard"
+                            roleNavController.navigate("dashboard") { launchSingleTop = true }
+                        },
+                        icon = { Icon(Icons.Default.Dashboard, contentDescription = "Dashboard") },
+                        label = {
+                            Text(
+                                if (currentUserRole == UserRole.MILL_WEIGHTMENT) "Mill Wt"
+                                else if (currentUserRole == UserRole.ELECTRIC_WEIGHTMENT) "Electric Wt"
+                                else "Dashboard"
+                            )
+                        },
+                        colors = NavigationBarItemDefaults.colors(selectedIconColor = roleThemeColor)
+                    )
+
+                    if (currentUserRole == UserRole.MAIN_GATE || currentUserRole == UserRole.SUPER_ADMIN) {
+                        NavigationBarItem(
+                            selected = currentNavRoute == "new_entry",
+                            onClick = {
+                                currentNavRoute = "new_entry"
+                                roleNavController.navigate("new_entry") { launchSingleTop = true }
+                            },
+                            icon = { Icon(Icons.Default.AddCircle, contentDescription = "New Entry") },
+                            label = { Text("Gate Entry") },
+                            colors = NavigationBarItemDefaults.colors(selectedIconColor = roleThemeColor)
+                        )
+                    }
+
+                    if (currentUserRole == UserRole.SUPER_ADMIN) {
+                        NavigationBarItem(
+                            selected = currentNavRoute == "mill_weight",
+                            onClick = {
+                                currentNavRoute = "mill_weight"
+                                roleNavController.navigate("mill_weight") { launchSingleTop = true }
+                            },
+                            icon = { Icon(Icons.Default.Scale, contentDescription = "Mill") },
+                            label = { Text("Mill Wt") },
+                            colors = NavigationBarItemDefaults.colors(selectedIconColor = roleThemeColor)
+                        )
+                        NavigationBarItem(
+                            selected = currentNavRoute == "electric_weight",
+                            onClick = {
+                                currentNavRoute = "electric_weight"
+                                roleNavController.navigate("electric_weight") { launchSingleTop = true }
+                            },
+                            icon = { Icon(Icons.Default.ElectricBolt, contentDescription = "Electric") },
+                            label = { Text("Electric Wt") },
+                            colors = NavigationBarItemDefaults.colors(selectedIconColor = roleThemeColor)
+                        )
+                    }
+
+                    NavigationBarItem(
+                        selected = currentNavRoute == "pending",
+                        onClick = {
+                            currentNavRoute = "pending"
+                            roleNavController.navigate("pending") { launchSingleTop = true }
+                        },
+                        icon = { Icon(Icons.Default.FormatListNumbered, contentDescription = "Pending Lorries") },
+                        label = { Text("Pending (${stats.pendingCount})") },
+                        colors = NavigationBarItemDefaults.colors(selectedIconColor = roleThemeColor)
+                    )
+
+                    if (currentUserRole == UserRole.SUPER_ADMIN) {
+                        NavigationBarItem(
+                            selected = currentNavRoute == "admin",
+                            onClick = {
+                                currentNavRoute = "admin"
+                                roleNavController.navigate("admin") { launchSingleTop = true }
+                            },
+                            icon = { Icon(Icons.Default.AdminPanelSettings, contentDescription = "Admin") },
+                            label = { Text("Admin") },
+                            colors = NavigationBarItemDefaults.colors(selectedIconColor = roleThemeColor)
+                        )
+                    }
+                }
+            }
+        ) { innerPadding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+            ) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    availableAppUpdate?.let { update: AppUpdateDto ->
+                        OtaUpdateBannerCard(
+                            updateDto = update,
+                            onDismiss = { viewModel.dismissUpdateBanner() }
+                        )
+                    }
+                    Box(modifier = Modifier.weight(1f)) {
+                        NavHost(
+                            navController = roleNavController,
+                            startDestination = "dashboard"
+                        ) {
+                    composable("dashboard") {
+                        when (currentUserRole) {
+                            UserRole.MAIN_GATE -> MainGateDashboard(
+                                stats = stats,
+                                lorries = filteredLorries,
+                                searchQuery = searchQuery,
+                                onSearchChange = { viewModel.searchQuery.value = it },
+                                onNewEntryClick = {
+                                    currentNavRoute = "new_entry"
+                                    roleNavController.navigate("new_entry")
+                                },
+                                onViewAllPendingClick = {
+                                    currentNavRoute = "pending"
+                                    roleNavController.navigate("pending")
+                                },
+                                onLorryClick = { lorry ->
+                                    val statusEnum = com.example.data.model.LorryStatus.fromString(lorry.status)
+                                    if (statusEnum == com.example.data.model.LorryStatus.READY_FOR_GATE_EXIT || statusEnum == com.example.data.model.LorryStatus.COMPLETED) {
+                                        activeGateOutLorry = lorry
+                                        roleNavController.navigate("gate_out")
+                                    } else {
+                                        viewModel.showToast("Lorry is currently at stage: ${lorry.currentStage}. Gate Exit is permitted when status is Ready for Gate Exit.")
+                                    }
+                                },
+                                onDaysInsideText = { viewModel.getDaysInsideText(it) },
+                                currentUserRole = currentUserRole
+                            )
+
+                            UserRole.MILL_WEIGHTMENT -> MillWeightmentDashboard(
+                                lorries = allLorries.filter { it.status != com.example.data.model.LorryStatus.COMPLETED.name },
+                                searchQuery = searchQuery,
+                                onSearchChange = { viewModel.searchQuery.value = it },
+                                onSubmitGrossWeight = { pass, w, party, chalan, mokam, marka, desc, tareWt, totalQty, unit, qualityItems, lorryNum, chalanGross ->
+                                    viewModel.submitMillGrossWeight(pass, w, party, chalan, mokam, marka, desc, tareWt, totalQty, unit, qualityItems, lorryNum, chalanGross)
+                                },
+                                onSubmitTareWeight = { pass, w -> viewModel.submitMillTareWeight(pass, w) },
+                                currentUserRole = currentUserRole
+                            )
+
+                            UserRole.ELECTRIC_WEIGHTMENT -> ElectricWeightmentDashboard(
+                                lorries = allLorries.filter { it.status != com.example.data.model.LorryStatus.COMPLETED.name },
+                                searchQuery = searchQuery,
+                                onSearchChange = { viewModel.searchQuery.value = it },
+                                onSubmitElectricGross = { pass, w -> viewModel.submitElectricGrossWeight(pass, w) },
+                                onMarkUnloaded = { pass -> viewModel.markUnloaded(pass) },
+                                onSubmitElectricTare = { pass, w -> viewModel.submitElectricTareWeight(pass, w) },
+                                onSubmitElectricWeights = { pass, eg, et -> viewModel.submitElectricWeights(pass, eg, et) },
+                                currentUserRole = currentUserRole
+                            )
+
+                            UserRole.SUPER_ADMIN -> SuperAdminDashboard(
+                                stats = stats,
+                                geoFenceState = geoFenceState,
+                                securityState = securityState,
+                                auditLogs = auditLogs,
+                                allLorries = allLorries,
+                                appUsers = appUsers,
+                                systemSettings = systemSettings,
+                                brokers = brokersList,
+                                qualities = qualitiesList,
+                                mokams = mokamsList,
+                                markas = markasList,
+                                onToggleGeoFenceOverride = { viewModel.toggleGeoFenceOverride() },
+                                onToggleGeofenceEnforcement = { enabled -> viewModel.toggleGeofenceEnforcement(enabled) },
+                                onUpdateGpsLocation = { lat, lng, dist, isInside, name -> viewModel.updateGoogleLocationServicesGps(lat, lng, dist, isInside, name) },
+                                onSyncOffline = { viewModel.syncOfflineData() },
+                                onExportReport = { format ->
+                                    viewModel.showToast("$format Report exported successfully to Downloads folder")
+                                },
+                                onShowToast = { viewModel.showToast(it) },
+                                onAddUser = { name, role -> viewModel.addUser(name, role) },
+                                onToggleUserStatus = { name -> viewModel.toggleUserStatus(name) },
+                                onDeleteUser = { name -> viewModel.deleteUser(name) },
+                                onAddBroker = { name -> viewModel.addBroker(name) },
+                                onDeleteBroker = { name -> viewModel.deleteBroker(name) },
+                                onAddQuality = { name -> viewModel.addQuality(name) },
+                                onDeleteQuality = { name -> viewModel.deleteQuality(name) },
+                                onAddMokam = { name -> viewModel.addMokam(name) },
+                                onDeleteMokam = { name -> viewModel.deleteMokam(name) },
+                                onAddMarka = { name -> viewModel.addMarka(name) },
+                                onDeleteMarka = { name -> viewModel.deleteMarka(name) },
+                                onSimulateLocation = { lat, lng, inMill, name -> viewModel.simulateGpsLocation(lat, lng, inMill, name) },
+                                onUpdateSettings = { mill, elec, print, timeout -> viewModel.updateSettings(mill, elec, print, timeout) },
+                                onBackupJson = { viewModel.exportDatabaseBackupJson() },
+                                onPublishAppUpdate = { code, name, url, notes, mandatory -> viewModel.publishAppUpdate(code, name, url, notes, mandatory) },
+                                onClearAuditLogs = { viewModel.clearAuditLogs() }
+                            )
+
+                            else -> MainGateDashboard(
+                                stats = stats,
+                                lorries = filteredLorries,
+                                searchQuery = searchQuery,
+                                onSearchChange = { viewModel.searchQuery.value = it },
+                                onNewEntryClick = { roleNavController.navigate("new_entry") },
+                                onViewAllPendingClick = { roleNavController.navigate("pending") },
+                                onLorryClick = { lorry ->
+                                    val statusEnum = com.example.data.model.LorryStatus.fromString(lorry.status)
+                                    if (statusEnum == com.example.data.model.LorryStatus.READY_FOR_GATE_EXIT || statusEnum == com.example.data.model.LorryStatus.COMPLETED) {
+                                        activeGateOutLorry = lorry
+                                        roleNavController.navigate("gate_out")
+                                    } else {
+                                        viewModel.showToast("Lorry is currently at stage: ${lorry.currentStage}. Gate Exit is permitted when status is Ready for Gate Exit.")
+                                    }
+                                },
+                                onDaysInsideText = { viewModel.getDaysInsideText(it) },
+                                currentUserRole = currentUserRole
+                            )
+                        }
+                    }
+
+                    composable("new_entry") {
+                        if (currentUserRole == UserRole.MAIN_GATE || currentUserRole == UserRole.SUPER_ADMIN) {
+                            NewGateEntryScreen(
+                                generatedGatePass = viewModel.generateGatePassNumber(),
+                                brokersList = brokersList,
+                                qualitiesList = qualitiesList,
+                                mokamsList = mokamsList,
+                                markasList = markasList,
+                                onSaveClick = { lorryNo, chalan, party, desc, qty, unit, gross, tare, items, mokam, marka ->
+                                    viewModel.saveGateEntry(lorryNo, chalan, party, desc, qty, unit, gross, tare, items, mokam, marka)
+                                    currentNavRoute = "dashboard"
+                                    roleNavController.popBackStack("dashboard", false)
+                                },
+                                onBackClick = {
+                                    roleNavController.popBackStack()
+                                }
+                            )
+                        } else {
+                            AccessDeniedCard(
+                                role = currentUserRole,
+                                requiredRole = "Main Gate or Super Admin",
+                                onGoHome = {
+                                    currentNavRoute = "dashboard"
+                                    roleNavController.navigate("dashboard")
+                                }
+                            )
+                        }
+                    }
+
+                    composable("mill_weight") {
+                        if (currentUserRole == UserRole.MILL_WEIGHTMENT || currentUserRole == UserRole.SUPER_ADMIN) {
+                            MillWeightmentDashboard(
+                                lorries = allLorries.filter { it.status != com.example.data.model.LorryStatus.COMPLETED.name },
+                                searchQuery = searchQuery,
+                                onSearchChange = { viewModel.searchQuery.value = it },
+                                onSubmitGrossWeight = { pass, w, party, chalan, mokam, marka, desc, tareWt, totalQty, unit, qualityItems, lorryNum, chalanGross ->
+                                    viewModel.submitMillGrossWeight(pass, w, party, chalan, mokam, marka, desc, tareWt, totalQty, unit, qualityItems, lorryNum, chalanGross)
+                                },
+                                onSubmitTareWeight = { pass, w -> viewModel.submitMillTareWeight(pass, w) },
+                                currentUserRole = currentUserRole
+                            )
+                        } else {
+                            AccessDeniedCard(
+                                role = currentUserRole,
+                                requiredRole = "Mill Weightment or Super Admin",
+                                onGoHome = {
+                                    currentNavRoute = "dashboard"
+                                    roleNavController.navigate("dashboard")
+                                }
+                            )
+                        }
+                    }
+
+                    composable("electric_weight") {
+                        if (currentUserRole == UserRole.ELECTRIC_WEIGHTMENT || currentUserRole == UserRole.SUPER_ADMIN) {
+                            ElectricWeightmentDashboard(
+                                lorries = allLorries.filter { it.status != com.example.data.model.LorryStatus.COMPLETED.name },
+                                searchQuery = searchQuery,
+                                onSearchChange = { viewModel.searchQuery.value = it },
+                                onSubmitElectricGross = { pass, w -> viewModel.submitElectricGrossWeight(pass, w) },
+                                onMarkUnloaded = { pass -> viewModel.markUnloaded(pass) },
+                                onSubmitElectricTare = { pass, w -> viewModel.submitElectricTareWeight(pass, w) },
+                                onSubmitElectricWeights = { pass, eg, et -> viewModel.submitElectricWeights(pass, eg, et) },
+                                currentUserRole = currentUserRole
+                            )
+                        } else {
+                            AccessDeniedCard(
+                                role = currentUserRole,
+                                requiredRole = "Electric Weightment or Super Admin",
+                                onGoHome = {
+                                    currentNavRoute = "dashboard"
+                                    roleNavController.navigate("dashboard")
+                                }
+                            )
+                        }
+                    }
+
+                    composable("pending") {
+                        PendingLorriesScreen(
+                            lorries = filteredLorries,
+                            searchQuery = searchQuery,
+                            onSearchChange = { viewModel.searchQuery.value = it },
+                            activeFilter = filterStatus,
+                            onFilterChange = { viewModel.filterStatus.value = it },
+                            currentUserRole = currentUserRole,
+                            onLorryClick = { lorry ->
+                                when (currentUserRole) {
+                                    UserRole.MILL_WEIGHTMENT -> {
+                                        currentNavRoute = "dashboard"
+                                        roleNavController.navigate("dashboard")
+                                    }
+                                    UserRole.ELECTRIC_WEIGHTMENT -> {
+                                        currentNavRoute = "dashboard"
+                                        roleNavController.navigate("dashboard")
+                                    }
+                                    UserRole.MAIN_GATE -> {
+                                        val statusEnum = com.example.data.model.LorryStatus.fromString(lorry.status)
+                                        if (statusEnum == com.example.data.model.LorryStatus.READY_FOR_GATE_EXIT || statusEnum == com.example.data.model.LorryStatus.COMPLETED) {
+                                            activeGateOutLorry = lorry
+                                            roleNavController.navigate("gate_out")
+                                        } else {
+                                            viewModel.showToast("Lorry is currently at stage: ${lorry.currentStage}. Gate Exit clearance is permitted when status is Ready for Gate Exit.")
+                                        }
+                                    }
+                                    UserRole.SUPER_ADMIN -> {
+                                        val statusEnum = com.example.data.model.LorryStatus.fromString(lorry.status)
+                                        if (statusEnum == com.example.data.model.LorryStatus.READY_FOR_GATE_EXIT || statusEnum == com.example.data.model.LorryStatus.COMPLETED) {
+                                            activeGateOutLorry = lorry
+                                            roleNavController.navigate("gate_out")
+                                        } else if (statusEnum == com.example.data.model.LorryStatus.ELECTRIC_GROSS_DONE || statusEnum == com.example.data.model.LorryStatus.WAITING_FOR_UNLOADING) {
+                                            currentNavRoute = "electric_weight"
+                                            roleNavController.navigate("electric_weight")
+                                        } else {
+                                            currentNavRoute = "mill_weight"
+                                            roleNavController.navigate("mill_weight")
+                                        }
+                                    }
+                                    else -> {}
+                                }
+                            },
+                            onDeleteLorry = { pass -> viewModel.deleteLorry(pass) },
+                            onDaysInsideText = { viewModel.getDaysInsideText(it) }
+                        )
+                    }
+
+                    composable("gate_out") {
+                        if (currentUserRole == UserRole.MAIN_GATE || currentUserRole == UserRole.SUPER_ADMIN) {
+                            activeGateOutLorry?.let { lorry ->
+                                GateOutScreen(
+                                    lorry = lorry,
+                                    onMarkOutClick = { pass, remarks ->
+                                        viewModel.markGateOut(pass, remarks)
+                                        roleNavController.popBackStack()
+                                    },
+                                    onBackClick = {
+                                        roleNavController.popBackStack()
+                                    }
+                                )
+                            }
+                        } else {
+                            AccessDeniedCard(
+                                role = currentUserRole,
+                                requiredRole = "Main Gate or Super Admin",
+                                onGoHome = {
+                                    currentNavRoute = "dashboard"
+                                    roleNavController.navigate("dashboard")
+                                }
+                            )
+                        }
+                    }
+
+                    composable("admin") {
+                        if (currentUserRole == UserRole.SUPER_ADMIN) {
+                            SuperAdminDashboard(
+                                stats = stats,
+                                geoFenceState = geoFenceState,
+                                securityState = securityState,
+                                auditLogs = auditLogs,
+                                allLorries = allLorries,
+                                appUsers = appUsers,
+                                systemSettings = systemSettings,
+                                brokers = brokersList,
+                                qualities = qualitiesList,
+                                mokams = mokamsList,
+                                markas = markasList,
+                                onToggleGeoFenceOverride = { viewModel.toggleGeoFenceOverride() },
+                                onToggleGeofenceEnforcement = { enabled -> viewModel.toggleGeofenceEnforcement(enabled) },
+                                onUpdateGpsLocation = { lat, lng, dist, isInside, name -> viewModel.updateGoogleLocationServicesGps(lat, lng, dist, isInside, name) },
+                                onSyncOffline = { viewModel.syncOfflineData() },
+                                onExportReport = { format ->
+                                    viewModel.showToast("$format Report exported successfully to Downloads folder")
+                                },
+                                onShowToast = { viewModel.showToast(it) },
+                                onAddUser = { name, role -> viewModel.addUser(name, role) },
+                                onToggleUserStatus = { name -> viewModel.toggleUserStatus(name) },
+                                onDeleteUser = { name -> viewModel.deleteUser(name) },
+                                onAddBroker = { name -> viewModel.addBroker(name) },
+                                onDeleteBroker = { name -> viewModel.deleteBroker(name) },
+                                onAddQuality = { name -> viewModel.addQuality(name) },
+                                onDeleteQuality = { name -> viewModel.deleteQuality(name) },
+                                onAddMokam = { name -> viewModel.addMokam(name) },
+                                onDeleteMokam = { name -> viewModel.deleteMokam(name) },
+                                onAddMarka = { name -> viewModel.addMarka(name) },
+                                onDeleteMarka = { name -> viewModel.deleteMarka(name) },
+                                onSimulateLocation = { lat, lng, inMill, name -> viewModel.simulateGpsLocation(lat, lng, inMill, name) },
+                                onUpdateSettings = { mill, elec, print, timeout -> viewModel.updateSettings(mill, elec, print, timeout) },
+                                onBackupJson = { viewModel.exportDatabaseBackupJson() },
+                                onPublishAppUpdate = { code, name, url, notes, mandatory -> viewModel.publishAppUpdate(code, name, url, notes, mandatory) },
+                                onClearAuditLogs = { viewModel.clearAuditLogs() }
+                            )
+                        } else {
+                            AccessDeniedCard(
+                                role = currentUserRole,
+                                requiredRole = "Super Admin",
+                                onGoHome = {
+                                    currentNavRoute = "dashboard"
+                                    roleNavController.navigate("dashboard")
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+                if (showGeoFenceDialog) {
+                    GeoFenceRestrictionDialog(
+                        onSuperAdminOverrideClick = {
+                            viewModel.toggleGeoFenceOverride()
+                            showGeoFenceDialog = false
+                        },
+                        onDismissRequest = { showGeoFenceDialog = false }
+                    )
+                }
+            }
+        }
+    }
+}
+}
+
+@Composable
+fun AccessDeniedCard(
+    role: UserRole?,
+    requiredRole: String,
+    onGoHome: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Lock,
+                    contentDescription = "Access Denied",
+                    modifier = Modifier.size(64.dp),
+                    tint = StatusRed
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Access Restricted",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Your current role (${role?.title ?: "Unknown"}) does not have permission to access this section. Required role: $requiredRole.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                Button(
+                    onClick = onGoHome,
+                    colors = ButtonDefaults.buttonColors(containerColor = IndustrialBlue),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Return to Dashboard", color = Color.White)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun OtaUpdateBannerCard(
+    updateDto: AppUpdateDto,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    var showDialog by remember { mutableStateOf(false) }
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp)
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                    Icon(
+                        imageVector = Icons.Default.SystemUpdate,
+                        contentDescription = "OTA Update Available",
+                        tint = Color(0xFF38BDF8),
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "🚀 App Update Available! (v${updateDto.versionName})",
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            style = MaterialTheme.typography.titleSmall
+                        )
+                        Text(
+                            text = "Build Code: ${updateDto.versionCode} ${if (updateDto.isMandatory) "• Mandatory Update" else ""}",
+                            color = Color(0xFF94A3B8),
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                }
+                if (!updateDto.isMandatory) {
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close Banner",
+                            tint = Color.LightGray
+                        )
+                    }
+                }
+            }
+            if (!updateDto.releaseNotes.isNullOrEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = updateDto.releaseNotes,
+                    color = Color(0xFFE2E8F0),
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            Button(
+                onClick = { showDialog = true },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(imageVector = Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Download & Install Update", fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+
+    if (showDialog) {
+        val rawUrl = updateDto.downloadUrl.trim()
+        val hasDirectUrl = rawUrl.isNotEmpty() && !rawUrl.contains(".run.app")
+
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.SystemUpdate, contentDescription = null, tint = Color(0xFF0284C7))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("App Update v${updateDto.versionName}")
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Release Notes:",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleSmall
+                    )
+                    Text(
+                        text = updateDto.releaseNotes ?: "Performance updates and enhancements.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F5F9)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                text = if (hasDirectUrl) "📦 Direct Update URL Detected:" else "📱 How to Update on Your Mobile Device:",
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = Color(0xFF0F172A)
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = if (hasDirectUrl) {
+                                    "Tap 'Download APK' below to open your browser and download the latest update from GitHub / direct server."
+                                } else {
+                                    "1. Export or push this project to GitHub or export APK from AI Studio Settings.\n2. Add the APK link in Super Admin OTA publisher or download directly.\n\nNote: Live AI Studio preview URLs (*.run.app) are web runners and cannot serve raw .apk files."
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFF334155)
+                            )
+                        }
+                    }
+
+                    if (hasDirectUrl) {
+                        Text(
+                            text = "Download URL: $rawUrl",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF0284C7)
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                if (hasDirectUrl) {
+                    Button(
+                        onClick = {
+                            try {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(rawUrl))
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Could not launch URL: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    ) {
+                        Text("Download APK")
+                    }
+                } else {
+                    Button(
+                        onClick = { showDialog = false },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
+                    ) {
+                        Text("Got It, Thanks!")
+                    }
+                }
+            },
+            dismissButton = {
+                if (hasDirectUrl) {
+                    OutlinedButton(onClick = { showDialog = false }) {
+                        Text("Close")
+                    }
+                }
+            }
+        )
+    }
+}
