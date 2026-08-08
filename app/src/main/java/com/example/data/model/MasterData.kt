@@ -85,7 +85,7 @@ enum class LorryStatus(
 }
 
 object MasterDataLists {
-    val DEPARTMENTS = listOf("Jute", "Store", "Finish Good", "Other")
+    val DEPARTMENTS = listOf("Select Department", "Jute", "Store", "Finish Good", "Other")
 
     val UNITS = listOf("BALES", "DRUMS", "LOOSE", "H.BALES", "P.BALES")
 

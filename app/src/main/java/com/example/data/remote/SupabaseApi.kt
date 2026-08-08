@@ -89,7 +89,22 @@ data class LorryWeighmentDto(
         val bestTare = gateTareVal ?: millTareVal ?: elecTareVal
         val bestNet = gateNetVal ?: (if (bestGross != null && bestTare != null) bestGross - bestTare else null)
 
-        val resolvedStatus = status ?: LorryStatus.GATE_ENTRY.name
+        val rawDept = department ?: (if (!millRemarks.isNullOrBlank() && millRemarks.contains("Department:")) millRemarks.substringAfter("Department:").substringBefore("\n").trim() else description ?: "Jute")
+        val resolvedDept = when {
+            rawDept.lowercase().contains("store") -> "Store"
+            rawDept.lowercase().contains("finish") -> "Finish Good"
+            rawDept.lowercase().contains("other") -> "Other"
+            else -> "Jute"
+        }
+
+        var resolvedStatus = status ?: LorryStatus.GATE_ENTRY.name
+        if (resolvedStatus == LorryStatus.GATE_ENTRY.name) {
+            when (resolvedDept) {
+                "Store" -> resolvedStatus = LorryStatus.STORE_PENDING.name
+                "Finish Good" -> resolvedStatus = LorryStatus.FINISH_GOOD_PENDING.name
+                "Other" -> resolvedStatus = LorryStatus.OTHER_PENDING.name
+            }
+        }
         val stage = LorryStatus.fromString(resolvedStatus).stageName
 
         val isUnloaded = when (unloadStatus) {
@@ -107,7 +122,8 @@ data class LorryWeighmentDto(
             chalan = chalanNo ?: "",
             inTime = inTime ?: "",
             party = partyName ?: "",
-            description = description ?: grade ?: "Jute",
+            description = description ?: grade ?: resolvedDept,
+            department = resolvedDept,
             totalQuantity = qtyVal,
             unit = unit ?: "BALES",
             grossWeight = gateGrossVal,
@@ -208,7 +224,7 @@ fun LorryWeighment.toDto(): LorryWeighmentDto {
         updatedAt = updatedIso,
         grade = description,
         gradeDetails = qualityItemsJson,
-        department = if (!remarks.isNullOrEmpty() && remarks.startsWith("Department: ")) remarks.removePrefix("Department: ") else description
+        department = if (department.isNotBlank()) department else if (!remarks.isNullOrEmpty() && remarks.startsWith("Department: ")) remarks.removePrefix("Department: ") else description
     )
 }
 

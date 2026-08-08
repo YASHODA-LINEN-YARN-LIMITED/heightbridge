@@ -191,6 +191,18 @@ fun MillWeightmentDashboard(
         unfocusedLabelColor = Color(0xFF475569)
     )
 
+    val displayJuteLorries = remember(lorries, searchQuery) {
+        lorries.filter { lorry ->
+            lorry.effectiveDepartment == "Jute" &&
+            lorry.status != LorryStatus.COMPLETED.name &&
+            lorry.outTime.isNullOrEmpty() &&
+            (searchQuery.isBlank() ||
+             lorry.lorryNumber.contains(searchQuery, ignoreCase = true) ||
+             lorry.gatePass.contains(searchQuery, ignoreCase = true) ||
+             lorry.party.contains(searchQuery, ignoreCase = true))
+        }
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -222,7 +234,7 @@ fun MillWeightmentDashboard(
                         color = Color.White
                     )
                     Text(
-                        text = if (isEditingForm) "Vehicle: ${vehicleNoInput.ifBlank { "New" }} (${gatePassInput.ifBlank { "N/A" }})" else "${lorries.size} Lorries waiting from Gate Entry",
+                        text = if (isEditingForm) "Vehicle: ${vehicleNoInput.ifBlank { "New" }} (${gatePassInput.ifBlank { "N/A" }})" else "${displayJuteLorries.size} Jute Lorries waiting from Gate Entry",
                         style = MaterialTheme.typography.labelSmall,
                         color = Color(0xFFE2E8F0)
                     )
@@ -244,18 +256,6 @@ fun MillWeightmentDashboard(
             }
 
             if (!isEditingForm) {
-                val displayJuteLorries = remember(lorries, searchQuery) {
-                    lorries.filter { lorry ->
-                        lorry.effectiveDepartment == "Jute" &&
-                        lorry.status != LorryStatus.COMPLETED.name &&
-                        lorry.outTime.isNullOrEmpty() &&
-                        (searchQuery.isBlank() ||
-                         lorry.lorryNumber.contains(searchQuery, ignoreCase = true) ||
-                         lorry.gatePass.contains(searchQuery, ignoreCase = true) ||
-                         lorry.party.contains(searchQuery, ignoreCase = true))
-                    }
-                }
-
                 // DASHBOARD VIEW: SHOW PENDING JUTE LORRIES FROM GATE
                 LazyColumn(
                     contentPadding = PaddingValues(14.dp),

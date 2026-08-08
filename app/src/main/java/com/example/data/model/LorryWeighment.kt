@@ -110,12 +110,13 @@ data class LorryWeighment(
 ) {
     val effectiveDepartment: String
         get() {
-            if (department.isNotBlank()) {
+            if (department.isNotBlank() && department != "Select Department") {
                 val d = department.trim().lowercase()
                 return when {
                     d.contains("store") -> "Store"
                     d.contains("finish") -> "Finish Good"
                     d.contains("other") -> "Other"
+                    d.contains("jute") -> "Jute"
                     else -> "Jute"
                 }
             }

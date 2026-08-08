@@ -313,8 +313,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 "PENDING" -> lorry.status != LorryStatus.COMPLETED.name
                 "COMPLETED" -> lorry.status == LorryStatus.COMPLETED.name
                 "OVERDUE" -> lorry.status == LorryStatus.OVERDUE.name || getDaysInside(lorry.createdAt) >= 2
-                "MILL_PENDING" -> lorry.status != LorryStatus.COMPLETED.name && (lorry.millGrossWeight == null || lorry.millGrossWeight == 0.0 || lorry.millTareWeight == null || lorry.millTareWeight == 0.0 || lorry.status == LorryStatus.GATE_ENTRY.name || lorry.status == LorryStatus.MILL_GROSS_PENDING.name || lorry.status == LorryStatus.MILL_TARE_PENDING.name)
-                "ELECTRIC_PENDING" -> lorry.status != LorryStatus.COMPLETED.name && (lorry.electricGrossWeight == null || lorry.electricGrossWeight == 0.0 || lorry.electricTareWeight == null || lorry.electricTareWeight == 0.0 || lorry.status == LorryStatus.WAITING_FOR_UNLOADING.name || lorry.status == LorryStatus.ELECTRIC_GROSS_DONE.name || lorry.status == LorryStatus.ELECTRIC_TARE_DONE.name)
+                "MILL_PENDING" -> lorry.effectiveDepartment == "Jute" && lorry.status != LorryStatus.COMPLETED.name && (lorry.millGrossWeight == null || lorry.millGrossWeight == 0.0 || lorry.millTareWeight == null || lorry.millTareWeight == 0.0 || lorry.status == LorryStatus.GATE_ENTRY.name || lorry.status == LorryStatus.MILL_GROSS_PENDING.name || lorry.status == LorryStatus.MILL_TARE_PENDING.name)
+                "ELECTRIC_PENDING" -> lorry.effectiveDepartment == "Jute" && lorry.status != LorryStatus.COMPLETED.name && (lorry.electricGrossWeight == null || lorry.electricGrossWeight == 0.0 || lorry.electricTareWeight == null || lorry.electricTareWeight == 0.0 || lorry.status == LorryStatus.WAITING_FOR_UNLOADING.name || lorry.status == LorryStatus.ELECTRIC_GROSS_DONE.name || lorry.status == LorryStatus.ELECTRIC_TARE_DONE.name)
                 else -> true
             }
 
@@ -474,17 +474,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val netW = if (grossWeight != null && tareWeight != null) grossWeight - tareWeight else null
             val qualityJson = try { qualityItemsAdapter.toJson(qualityItems) } catch (e: Exception) { "[]" }
 
-            val statusName = when (department.trim().lowercase()) {
-                "store" -> LorryStatus.STORE_PENDING.name
-                "finish good" -> LorryStatus.FINISH_GOOD_PENDING.name
-                "other" -> LorryStatus.OTHER_PENDING.name
+            val deptLower = department.trim().lowercase()
+            val statusName = when {
+                deptLower.contains("store") -> LorryStatus.STORE_PENDING.name
+                deptLower.contains("finish") -> LorryStatus.FINISH_GOOD_PENDING.name
+                deptLower.contains("other") -> LorryStatus.OTHER_PENDING.name
                 else -> LorryStatus.GATE_ENTRY.name
             }
 
-            val stageName = when (department.trim().lowercase()) {
-                "store" -> "Store Dept"
-                "finish good" -> "Finish Good Dept"
-                "other" -> "Other Dept"
+            val stageName = when {
+                deptLower.contains("store") -> "Store Dept"
+                deptLower.contains("finish") -> "Finish Good Dept"
+                deptLower.contains("other") -> "Other Dept"
                 else -> "Mill Weighbridge"
             }
 

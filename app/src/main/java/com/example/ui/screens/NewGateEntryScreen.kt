@@ -84,7 +84,7 @@ fun NewGateEntryScreen(
 
     var dateText by remember { mutableStateOf(todayDate) }
     var lorryNumber by remember { mutableStateOf("") }
-    var selectedDepartment by remember { mutableStateOf("") }
+    var selectedDepartment by remember { mutableStateOf("Select Department") }
     var materialDescription by remember { mutableStateOf("") }
     var inTimeText by remember { mutableStateOf(currentTime) }
     var remarksText by remember { mutableStateOf("") }
@@ -357,13 +357,14 @@ fun NewGateEntryScreen(
                 .padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            val isValidDepartment = selectedDepartment.isNotBlank() && selectedDepartment != "Select Department"
             Button(
                 onClick = {
-                    if (lorryNumber.isNotBlank() && selectedDepartment.isNotBlank()) {
+                    if (lorryNumber.isNotBlank() && isValidDepartment) {
                         showConfirmDialog = true
                     }
                 },
-                enabled = lorryNumber.isNotBlank() && selectedDepartment.isNotBlank(),
+                enabled = lorryNumber.isNotBlank() && isValidDepartment,
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = IndustrialBlue),
                 modifier = Modifier

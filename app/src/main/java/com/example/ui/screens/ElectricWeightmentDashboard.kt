@@ -424,7 +424,7 @@ fun ElectricWeightmentDashboard(
                 // Section 2: Queue Header & Search
                 item {
                     Text(
-                        text = "Pending Electric Weighbridge Queue (${lorries.size})",
+                        text = "Pending Electric Weighbridge Queue (${filteredQueue.size})",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF1E293B)
