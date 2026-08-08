@@ -193,7 +193,7 @@ fun MillWeightmentDashboard(
 
     val displayJuteLorries = remember(lorries, searchQuery) {
         lorries.filter { lorry ->
-            lorry.effectiveDepartment == "Jute" &&
+            lorry.effectiveDepartment.equals("Jute", ignoreCase = true) &&
             lorry.status != LorryStatus.COMPLETED.name &&
             lorry.outTime.isNullOrEmpty() &&
             (searchQuery.isBlank() ||

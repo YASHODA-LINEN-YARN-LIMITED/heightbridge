@@ -371,7 +371,7 @@ fun BallyWeighbridgeApp(
                             )
 
                             UserRole.MILL_WEIGHTMENT -> MillWeightmentDashboard(
-                                lorries = allLorries.filter { it.effectiveDepartment == "Jute" && it.status != com.example.data.model.LorryStatus.COMPLETED.name && it.outTime.isNullOrEmpty() },
+                                lorries = allLorries.filter { it.effectiveDepartment.equals("Jute", ignoreCase = true) && it.status != com.example.data.model.LorryStatus.COMPLETED.name && it.outTime.isNullOrEmpty() },
                                 searchQuery = searchQuery,
                                 onSearchChange = { viewModel.searchQuery.value = it },
                                 onSubmitGrossWeight = { pass, w, party, chalan, mokam, marka, desc, tareWt, totalQty, unit, qualityItems, lorryNum, chalanGross ->
@@ -382,7 +382,7 @@ fun BallyWeighbridgeApp(
                             )
 
                             UserRole.ELECTRIC_WEIGHTMENT -> ElectricWeightmentDashboard(
-                                lorries = allLorries.filter { it.effectiveDepartment == "Jute" && it.status != com.example.data.model.LorryStatus.COMPLETED.name && it.outTime.isNullOrEmpty() },
+                                lorries = allLorries.filter { it.effectiveDepartment.equals("Jute", ignoreCase = true) && it.status != com.example.data.model.LorryStatus.COMPLETED.name && it.outTime.isNullOrEmpty() },
                                 searchQuery = searchQuery,
                                 onSearchChange = { viewModel.searchQuery.value = it },
                                 onSubmitElectricGross = { pass, w -> viewModel.submitElectricGrossWeight(pass, w) },
@@ -506,7 +506,7 @@ fun BallyWeighbridgeApp(
                     composable("mill_weight") {
                         if (currentUserRole == UserRole.MILL_WEIGHTMENT || currentUserRole == UserRole.SUPER_ADMIN) {
                             MillWeightmentDashboard(
-                                lorries = allLorries.filter { it.effectiveDepartment == "Jute" && it.status != com.example.data.model.LorryStatus.COMPLETED.name && it.outTime.isNullOrEmpty() },
+                                lorries = allLorries.filter { it.effectiveDepartment.equals("Jute", ignoreCase = true) && it.status != com.example.data.model.LorryStatus.COMPLETED.name && it.outTime.isNullOrEmpty() },
                                 searchQuery = searchQuery,
                                 onSearchChange = { viewModel.searchQuery.value = it },
                                 onSubmitGrossWeight = { pass, w, party, chalan, mokam, marka, desc, tareWt, totalQty, unit, qualityItems, lorryNum, chalanGross ->
@@ -530,7 +530,7 @@ fun BallyWeighbridgeApp(
                     composable("electric_weight") {
                         if (currentUserRole == UserRole.ELECTRIC_WEIGHTMENT || currentUserRole == UserRole.SUPER_ADMIN) {
                             ElectricWeightmentDashboard(
-                                lorries = allLorries.filter { it.effectiveDepartment == "Jute" && it.status != com.example.data.model.LorryStatus.COMPLETED.name && it.outTime.isNullOrEmpty() },
+                                lorries = allLorries.filter { it.effectiveDepartment.equals("Jute", ignoreCase = true) && it.status != com.example.data.model.LorryStatus.COMPLETED.name && it.outTime.isNullOrEmpty() },
                                 searchQuery = searchQuery,
                                 onSearchChange = { viewModel.searchQuery.value = it },
                                 onSubmitElectricGross = { pass, w -> viewModel.submitElectricGrossWeight(pass, w) },

@@ -89,11 +89,18 @@ data class LorryWeighmentDto(
         val bestTare = gateTareVal ?: millTareVal ?: elecTareVal
         val bestNet = gateNetVal ?: (if (bestGross != null && bestTare != null) bestGross - bestTare else null)
 
-        val rawDept = department ?: (if (!millRemarks.isNullOrBlank() && millRemarks.contains("Department:")) millRemarks.substringAfter("Department:").substringBefore("\n").trim() else description ?: "Jute")
+        val deptCandidate = when {
+            !department.isNullOrBlank() -> department
+            !millRemarks.isNullOrBlank() && millRemarks.contains("Department:", ignoreCase = true) -> millRemarks.substringAfter("Department:").substringBefore("\n").trim()
+            !description.isNullOrBlank() -> description
+            !status.isNullOrBlank() -> status
+            else -> "Jute"
+        }
         val resolvedDept = when {
-            rawDept.lowercase().contains("store") -> "Store"
-            rawDept.lowercase().contains("finish") -> "Finish Good"
-            rawDept.lowercase().contains("other") -> "Other"
+            deptCandidate.lowercase().contains("store") -> "Store"
+            deptCandidate.lowercase().contains("finish") -> "Finish Good"
+            deptCandidate.lowercase().contains("other") -> "Other"
+            deptCandidate.lowercase().contains("jute") -> "Jute"
             else -> "Jute"
         }
 
