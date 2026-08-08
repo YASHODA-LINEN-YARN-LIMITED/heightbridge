@@ -58,7 +58,8 @@ data class SystemSettingsState(
     val millZeroOffsetKg: Double = 0.0,
     val electricZeroOffsetKg: Double = 0.0,
     val autoPrintThermalReceipt: Boolean = true,
-    val inactivityTimeoutMinutes: Int = 5
+    val inactivityTimeoutMinutes: Int = 5,
+    val allowScreenCapture: Boolean = false
 )
 
 data class GeoFenceState(
@@ -144,39 +145,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
             seedInitialAuditLogs()
 
-            // Initial OTA update push check
-            val initialRemoteUpdate = repository.getAppUpdateInfo()
-            if (initialRemoteUpdate != null && initialRemoteUpdate.versionCode > currentVersionCode) {
-                if (!isUpdateDismissed(initialRemoteUpdate.versionCode)) {
-                    availableAppUpdate.value = initialRemoteUpdate
-                }
-            } else {
-                // Ensure latest server record exists (versionCode = 2, v1.2.0) for older app instances
-                val latestServerMeta = AppUpdateDto(
-                    id = 1,
-                    versionCode = 2,
-                    versionName = "1.2.0",
-                    downloadUrl = "https://github.com/mis-cell/weight_bridge/raw/main/app-debug.apk",
-                    releaseNotes = "🚀 OTA Update v1.2.0: Added Department dropdown (Jute, Store, Finish Good, Other), Department Dashboards, Gate Entry No. format, and Realtime Sync.",
-                    isMandatory = false,
-                    updatedAt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).format(Date())
-                )
-                repository.publishAppUpdate(latestServerMeta)
-                // Installed version is equal to latest version -> NO update banner!
-                availableAppUpdate.value = null
-            }
-
-            // Continuous Realtime Supabase Sync & OTA Update Check Loop (polls Supabase every 5 seconds)
+            // Continuous Realtime Supabase Sync Loop (polls Supabase every 5 seconds)
             while (true) {
                 kotlinx.coroutines.delay(5000)
                 try {
                     repository.refreshFromRemote()
-                    val remoteUpdate = repository.getAppUpdateInfo()
-                    if (remoteUpdate != null && remoteUpdate.versionCode > currentVersionCode && !isUpdateDismissed(remoteUpdate.versionCode)) {
-                        availableAppUpdate.value = remoteUpdate
-                    } else if (remoteUpdate != null && isUpdateDismissed(remoteUpdate.versionCode)) {
-                        availableAppUpdate.value = null
-                    }
                 } catch (_: Exception) {
                 }
             }
@@ -1003,16 +976,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         showToast("GPS Location Updated via Google Location Services")
     }
 
-    fun updateSettings(millOffset: Double, electricOffset: Double, autoPrint: Boolean, timeoutMin: Int) {
+    fun updateSettings(millOffset: Double, electricOffset: Double, autoPrint: Boolean, timeoutMin: Int, allowCapture: Boolean = false) {
         systemSettings.value = SystemSettingsState(
             millZeroOffsetKg = millOffset,
             electricZeroOffsetKg = electricOffset,
             autoPrintThermalReceipt = autoPrint,
-            inactivityTimeoutMinutes = timeoutMin
+            inactivityTimeoutMinutes = timeoutMin,
+            allowScreenCapture = allowCapture
         )
-        securityState.value = securityState.value.copy(isAutoLogoutEnabled = timeoutMin > 0)
-        logAuditAction("CALIBRATION_SAVE", "SYSTEM", "Saved weighbridge zero offsets (Mill: ${millOffset}kg, Elec: ${electricOffset}kg)")
-        showToast("System settings & weighbridge offsets updated")
+        securityState.value = securityState.value.copy(
+            isAutoLogoutEnabled = timeoutMin > 0,
+            isFlagSecureActive = !allowCapture
+        )
+        logAuditAction("SETTINGS_SAVE", "SYSTEM", "Saved settings (Screen Capture: ${if (allowCapture) "Allowed" else "Restricted"}, Offsets Mill: ${millOffset}kg, Elec: ${electricOffset}kg)")
+        showToast("System settings updated. Screen Capture: ${if (allowCapture) "Allowed" else "Restricted"}")
     }
 
     fun exportDatabaseBackupJson() {

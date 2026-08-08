@@ -147,7 +147,7 @@ fun SuperAdminDashboard(
     onAddMarka: (String) -> Unit = {},
     onDeleteMarka: (String) -> Unit = {},
     onSimulateLocation: (Double, Double, Boolean, String) -> Unit = { _, _, _, _ -> },
-    onUpdateSettings: (Double, Double, Boolean, Int) -> Unit = { _, _, _, _ -> },
+    onUpdateSettings: (Double, Double, Boolean, Int, Boolean) -> Unit = { _, _, _, _, _ -> },
     onBackupJson: () -> Unit = {},
     onPublishAppUpdate: (Int, String, String, String, Boolean) -> Unit = { _, _, _, _, _ -> },
     onClearAuditLogs: () -> Unit = {},
@@ -695,7 +695,7 @@ fun AdminModuleDialog(
     onDeleteMokam: (String) -> Unit,
     onAddMarka: (String) -> Unit,
     onDeleteMarka: (String) -> Unit,
-    onUpdateSettings: (Double, Double, Boolean, Int) -> Unit,
+    onUpdateSettings: (Double, Double, Boolean, Int, Boolean) -> Unit,
     onBackupJson: () -> Unit,
     onPublishAppUpdate: (Int, String, String, String, Boolean) -> Unit = { _, _, _, _, _ -> },
     onClearAuditLogs: () -> Unit,
@@ -1538,12 +1538,13 @@ fun BackupModuleView(
 fun SettingsModuleView(
     systemSettings: SystemSettingsState,
     geoFenceState: GeoFenceState,
-    onUpdateSettings: (Double, Double, Boolean, Int) -> Unit
+    onUpdateSettings: (Double, Double, Boolean, Int, Boolean) -> Unit
 ) {
     var millOffset by remember { mutableStateOf(systemSettings.millZeroOffsetKg.toString()) }
     var elecOffset by remember { mutableStateOf(systemSettings.electricZeroOffsetKg.toString()) }
     var autoPrint by remember { mutableStateOf(systemSettings.autoPrintThermalReceipt) }
     var timeoutMin by remember { mutableStateOf(systemSettings.inactivityTimeoutMinutes) }
+    var allowScreenCapture by remember { mutableStateOf(systemSettings.allowScreenCapture) }
 
     Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Card(
@@ -1594,11 +1595,41 @@ fun SettingsModuleView(
             }
         }
 
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Allow Screen Capture & Screenshots", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "When enabled, screenshots and screen recordings are allowed. When disabled, they are restricted for security.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.Gray
+                        )
+                    }
+                    Switch(
+                        checked = allowScreenCapture,
+                        onCheckedChange = { allowScreenCapture = it },
+                        colors = SwitchDefaults.colors(checkedThumbColor = IndustrialBlue)
+                    )
+                }
+            }
+        }
+
         Button(
             onClick = {
                 val millVal = millOffset.toDoubleOrNull() ?: 0.0
                 val elecVal = elecOffset.toDoubleOrNull() ?: 0.0
-                onUpdateSettings(millVal, elecVal, autoPrint, timeoutMin)
+                onUpdateSettings(millVal, elecVal, autoPrint, timeoutMin, allowScreenCapture)
             },
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(containerColor = StatusGreen),

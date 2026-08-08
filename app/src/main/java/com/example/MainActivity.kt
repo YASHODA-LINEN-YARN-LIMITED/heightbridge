@@ -113,14 +113,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        // Enforce FLAG_SECURE on resume to block screenshots and recording
-        window.setFlags(
-            WindowManager.LayoutParams.FLAG_SECURE,
-            WindowManager.LayoutParams.FLAG_SECURE
-        )
-    }
+
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -151,6 +144,20 @@ fun BallyWeighbridgeApp(
 
     val toastMsg by viewModel.toastMessage.collectAsState()
     val availableAppUpdate by viewModel.availableAppUpdate.collectAsState()
+
+    val activity = LocalContext.current as? android.app.Activity
+    LaunchedEffect(systemSettings.allowScreenCapture) {
+        activity?.window?.let { win ->
+            if (systemSettings.allowScreenCapture) {
+                win.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+            } else {
+                win.setFlags(
+                    WindowManager.LayoutParams.FLAG_SECURE,
+                    WindowManager.LayoutParams.FLAG_SECURE
+                )
+            }
+        }
+    }
 
     // Periodic check for auto logout due to inactivity
     LaunchedEffect(currentUserRole) {
@@ -238,16 +245,6 @@ fun BallyWeighbridgeApp(
                         }
                     },
                     actions = {
-                        IconButton(
-                            onClick = { viewModel.checkForAppUpdatesManually() },
-                            modifier = Modifier.testTag("top_app_bar_check_updates")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.SystemUpdate,
-                                contentDescription = "Check for OTA Updates",
-                                tint = MaterialTheme.colorScheme.onPrimary
-                            )
-                        }
                         IconButton(
                             onClick = { viewModel.logout() },
                             modifier = Modifier.testTag("top_app_bar_logout")
@@ -359,12 +356,6 @@ fun BallyWeighbridgeApp(
                     .padding(innerPadding)
             ) {
                 Column(modifier = Modifier.fillMaxSize()) {
-                    availableAppUpdate?.let { update: AppUpdateDto ->
-                        OtaUpdateBannerCard(
-                            updateDto = update,
-                            onDismiss = { viewModel.dismissUpdateBanner() }
-                        )
-                    }
                     Box(modifier = Modifier.weight(1f)) {
                         NavHost(
                             navController = roleNavController,
@@ -474,7 +465,7 @@ fun BallyWeighbridgeApp(
                                 onAddMarka = { name -> viewModel.addMarka(name) },
                                 onDeleteMarka = { name -> viewModel.deleteMarka(name) },
                                 onSimulateLocation = { lat, lng, inMill, name -> viewModel.simulateGpsLocation(lat, lng, inMill, name) },
-                                onUpdateSettings = { mill, elec, print, timeout -> viewModel.updateSettings(mill, elec, print, timeout) },
+                                onUpdateSettings = { mill, elec, print, timeout, allowCapture -> viewModel.updateSettings(mill, elec, print, timeout, allowCapture) },
                                 onBackupJson = { viewModel.exportDatabaseBackupJson() },
                                 onPublishAppUpdate = { code, name, url, notes, mandatory -> viewModel.publishAppUpdate(code, name, url, notes, mandatory) },
                                 onClearAuditLogs = { viewModel.clearAuditLogs() }
@@ -717,7 +708,7 @@ fun BallyWeighbridgeApp(
                                 onAddMarka = { name -> viewModel.addMarka(name) },
                                 onDeleteMarka = { name -> viewModel.deleteMarka(name) },
                                 onSimulateLocation = { lat, lng, inMill, name -> viewModel.simulateGpsLocation(lat, lng, inMill, name) },
-                                onUpdateSettings = { mill, elec, print, timeout -> viewModel.updateSettings(mill, elec, print, timeout) },
+                                onUpdateSettings = { mill, elec, print, timeout, allowCapture -> viewModel.updateSettings(mill, elec, print, timeout, allowCapture) },
                                 onBackupJson = { viewModel.exportDatabaseBackupJson() },
                                 onPublishAppUpdate = { code, name, url, notes, mandatory -> viewModel.publishAppUpdate(code, name, url, notes, mandatory) },
                                 onClearAuditLogs = { viewModel.clearAuditLogs() }
