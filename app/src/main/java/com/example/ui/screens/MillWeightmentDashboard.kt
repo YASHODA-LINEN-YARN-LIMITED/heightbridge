@@ -244,7 +244,19 @@ fun MillWeightmentDashboard(
             }
 
             if (!isEditingForm) {
-                // DASHBOARD VIEW: SHOW PENDING LORRIES FROM GATE
+                val displayJuteLorries = remember(lorries, searchQuery) {
+                    lorries.filter { lorry ->
+                        lorry.effectiveDepartment == "Jute" &&
+                        lorry.status != LorryStatus.COMPLETED.name &&
+                        lorry.outTime.isNullOrEmpty() &&
+                        (searchQuery.isBlank() ||
+                         lorry.lorryNumber.contains(searchQuery, ignoreCase = true) ||
+                         lorry.gatePass.contains(searchQuery, ignoreCase = true) ||
+                         lorry.party.contains(searchQuery, ignoreCase = true))
+                    }
+                }
+
+                // DASHBOARD VIEW: SHOW PENDING JUTE LORRIES FROM GATE
                 LazyColumn(
                     contentPadding = PaddingValues(14.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -264,7 +276,7 @@ fun MillWeightmentDashboard(
                         )
                     }
 
-                    if (lorries.isEmpty()) {
+                    if (displayJuteLorries.isEmpty()) {
                         item {
                             Card(
                                 shape = RoundedCornerShape(12.dp),
@@ -276,7 +288,7 @@ fun MillWeightmentDashboard(
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
                                     Text(
-                                        text = "No pending lorries from Gate Entry.",
+                                        text = "No pending Jute lorries in Mill queue.",
                                         style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = FontWeight.Medium,
                                         color = Color(0xFF64748B)
@@ -296,7 +308,7 @@ fun MillWeightmentDashboard(
                         }
                     }
 
-                    items(lorries) { lorry ->
+                    items(displayJuteLorries) { lorry ->
                         val statusEnum = LorryStatus.fromString(lorry.status)
                         Card(
                             shape = RoundedCornerShape(12.dp),
@@ -339,10 +351,11 @@ fun MillWeightmentDashboard(
 
                                 Spacer(modifier = Modifier.height(6.dp))
                                 val mGross = lorry.millGrossWeight?.toInt()?.toString() ?: "---"
+                                val eGross = lorry.electricGrossWeight?.toInt()?.toString() ?: "---"
+                                val eTare = lorry.electricTareWeight?.toInt()?.toString() ?: "---"
                                 val mTare = lorry.millTareWeight?.toInt()?.toString() ?: "---"
-                                val mNet = lorry.millNetWeight?.toInt()?.toString() ?: "---"
                                 Text(
-                                    text = "Mill Gross: $mGross kg | Mill Tare: $mTare kg | Net: $mNet kg",
+                                    text = "Mill Gross: $mGross kg | Elec Gross: $eGross kg | Elec Tare: $eTare kg | Mill Tare: $mTare kg",
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF0F172A)
@@ -351,9 +364,10 @@ fun MillWeightmentDashboard(
                                 Spacer(modifier = Modifier.height(10.dp))
 
                                 val buttonLabel = when {
-                                    lorry.millGrossWeight != null && lorry.millGrossWeight > 0 && (lorry.millTareWeight == null || lorry.millTareWeight == 0.0) -> "Enter Mill Tare Weight (Empty Vehicle)"
-                                    lorry.millGrossWeight != null && lorry.millGrossWeight > 0 -> "View / Edit Mill Gross & Tare Weight"
-                                    else -> "Enter Chalan & Mill Gross Weight"
+                                    lorry.millGrossWeight == null -> "Stage 1: Enter Mill Gross Weight"
+                                    lorry.electricTareWeight == null -> "Stage 2/3: In Electric Weighbridge Stage"
+                                    lorry.millTareWeight == null -> "Stage 4: Enter Mill Tare Weight"
+                                    else -> "View / Edit Mill Weighment Record"
                                 }
 
                                 Button(
@@ -659,7 +673,7 @@ fun MillWeightmentDashboard(
                                 if (isMillGrossInModel && !isSuperAdminRole) {
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
-                                        text = "🔒 Mill Gross Weight Recorded (${selectedLorry!!.millGrossWeight?.toInt()} kg) • Locked until session reset or Admin",
+                                        text = "🔒 Mill Gross Weight Recorded (${selectedLorry!!.millGrossWeight?.toInt()} kg) • Locked",
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
                                         color = Color(0xFFD97706)
@@ -668,58 +682,76 @@ fun MillWeightmentDashboard(
 
                                 Spacer(modifier = Modifier.height(10.dp))
 
-                                OutlinedTextField(
-                                    value = millTareWeightInput,
-                                    onValueChange = { millTareWeightInput = it },
-                                    label = { Text("Mill Tare Weight (Empty Lorry) (kg)") },
-                                    placeholder = { Text("Enter empty lorry weight after unloading") },
-                                    enabled = canEditMillTare,
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                    shape = RoundedCornerShape(10.dp),
-                                    colors = standardInputColors,
-                                    leadingIcon = {
-                                        Icon(Icons.Default.Scale, contentDescription = null, tint = IndustrialBlue)
-                                    },
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                                if (isMillTareInModel && !isSuperAdminRole) {
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = "🔒 Mill Tare Weight Recorded (${selectedLorry!!.millTareWeight?.toInt()} kg) • Locked until session reset or Admin",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFFD97706)
-                                    )
-                                }
-
-                                val grossVal = millGrossWeightInput.toDoubleOrNull() ?: 0.0
-                                val tareVal = millTareWeightInput.toDoubleOrNull() ?: 0.0
-                                if (grossVal > 0 && tareVal > 0) {
-                                    val netVal = (grossVal - tareVal).coerceAtLeast(0.0)
-                                    Spacer(modifier = Modifier.height(10.dp))
+                                if (!isMillGrossInModel && !isSuperAdminRole) {
+                                    // STAGE 1: Mill Gross Stage - DO NOT ASK FOR MILL TARE YET
                                     Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .background(Color(0xFFF0FDF4), RoundedCornerShape(8.dp))
+                                            .background(Color(0xFFEFF6FF), RoundedCornerShape(8.dp))
                                             .padding(10.dp)
                                     ) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
+                                        Text(
+                                            text = "ℹ️ Stage 1 of 2 in Mill Weighbridge: Enter Mill Gross Weight. Mill Tare Weight will be recorded in Stage 4 after Electric Weighbridge.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontWeight = FontWeight.Medium,
+                                            color = Color(0xFF1E40AF)
+                                        )
+                                    }
+                                } else {
+                                    // STAGE 4: Mill Tare Stage
+                                    OutlinedTextField(
+                                        value = millTareWeightInput,
+                                        onValueChange = { millTareWeightInput = it },
+                                        label = { Text("Mill Tare Weight (Empty Lorry) (kg)") },
+                                        placeholder = { Text("Enter empty lorry weight after unloading") },
+                                        enabled = canEditMillTare,
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                        shape = RoundedCornerShape(10.dp),
+                                        colors = standardInputColors,
+                                        leadingIcon = {
+                                            Icon(Icons.Default.Scale, contentDescription = null, tint = IndustrialBlue)
+                                        },
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                    if (isMillTareInModel && !isSuperAdminRole) {
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "🔒 Mill Tare Weight Recorded (${selectedLorry!!.millTareWeight?.toInt()} kg) • Locked",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFFD97706)
+                                        )
+                                    }
+
+                                    val grossVal = millGrossWeightInput.toDoubleOrNull() ?: (selectedLorry?.millGrossWeight ?: 0.0)
+                                    val tareVal = millTareWeightInput.toDoubleOrNull() ?: 0.0
+                                    if (grossVal > 0 && tareVal > 0) {
+                                        val netVal = (grossVal - tareVal).coerceAtLeast(0.0)
+                                        Spacer(modifier = Modifier.height(10.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .background(Color(0xFFF0FDF4), RoundedCornerShape(8.dp))
+                                                .padding(10.dp)
                                         ) {
-                                            Text(
-                                                text = "Calculated Mill Net Weight:",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF166534)
-                                            )
-                                            Text(
-                                                text = "${netVal.toInt()} kg",
-                                                style = MaterialTheme.typography.titleMedium,
-                                                fontWeight = FontWeight.ExtraBold,
-                                                color = Color(0xFF15803D)
-                                            )
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = "Calculated Mill Net Weight:",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFF166534)
+                                                )
+                                                Text(
+                                                    text = "${netVal.toInt()} kg",
+                                                    style = MaterialTheme.typography.titleMedium,
+                                                    fontWeight = FontWeight.ExtraBold,
+                                                    color = Color(0xFF15803D)
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -728,31 +760,31 @@ fun MillWeightmentDashboard(
 
                                 Button(
                                     onClick = {
-                                        val millGross = millGrossWeightInput.toDoubleOrNull() ?: 0.0
+                                        val millGross = millGrossWeightInput.toDoubleOrNull() ?: (selectedLorry?.millGrossWeight ?: 0.0)
                                         val millTare = millTareWeightInput.toDoubleOrNull()
                                         val chalanGross = chalanGrossWtInput.toDoubleOrNull()
                                         val totalQtySum = qualityItems.sumOf { it.quantity }
                                         val primaryUnit = qualityItems.firstOrNull()?.unit ?: "BALES"
                                         val primaryQuality = qualityItems.joinToString(", ") { it.quality }.ifBlank { descriptionInput }
 
-                                        onSubmitGrossWeight(
-                                            gatePassInput,
-                                            millGross,
-                                            partyInput,
-                                            challanInput,
-                                            mokamInput,
-                                            markaInput,
-                                            primaryQuality,
-                                            millTare,
-                                            totalQtySum,
-                                            primaryUnit,
-                                            qualityItems.toList(),
-                                            vehicleNoInput,
-                                            chalanGross
-                                        )
-
-                                        if (millTare != null && millTare > 0) {
+                                        if (isMillGrossInModel && millTare != null && millTare > 0) {
                                             onSubmitTareWeight(gatePassInput, millTare)
+                                        } else {
+                                            onSubmitGrossWeight(
+                                                gatePassInput,
+                                                millGross,
+                                                partyInput,
+                                                challanInput,
+                                                mokamInput,
+                                                markaInput,
+                                                primaryQuality,
+                                                millTare,
+                                                totalQtySum,
+                                                primaryUnit,
+                                                qualityItems.toList(),
+                                                vehicleNoInput,
+                                                chalanGross
+                                            )
                                         }
 
                                         resetForm()
@@ -767,7 +799,7 @@ fun MillWeightmentDashboard(
                                     Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color.White)
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = if (millTareWeightInput.isNotBlank()) "Submit Mill Gross & Tare Weight" else "Submit Mill Gross Weighment",
+                                        text = if (isMillGrossInModel) "Submit Mill Tare Weight (Stage 4)" else "Submit Mill Gross Weight (Stage 1)",
                                         color = Color.White,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 15.sp

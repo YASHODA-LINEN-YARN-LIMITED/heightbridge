@@ -607,11 +607,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 logAuditAction("MILL_GROSS_WEIGHT", newLorry.gatePass, "New Entry & Mill Gross: ${grossWeight.toInt()} kg, Party: ${newLorry.party}")
                 showToast("Mill Gross Weight & Party Challan recorded for ${newLorry.gatePass}")
             } else {
-                val currentStageIndex = LorryStatus.fromString(lorry.status).stageIndex
-                val targetStatus = LorryStatus.WAITING_FOR_UNLOADING
-                val nextStatus = if (currentStageIndex < targetStatus.stageIndex) targetStatus.name else lorry.status
-                val nextStage = if (currentStageIndex < targetStatus.stageIndex) targetStatus.stageName else lorry.currentStage
-
                 val updated = lorry.copy(
                     grossWeight = effectiveGateGross ?: lorry.grossWeight,
                     millGrossWeight = grossWeight,
@@ -620,18 +615,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     mokam = if (mokam.isNotBlank()) mokam else lorry.mokam,
                     marka = if (marka.isNotBlank()) marka else lorry.marka,
                     description = if (description.isNotBlank()) description else lorry.description,
-                    millTareWeight = tareWeight ?: lorry.millTareWeight,
                     totalQuantity = if (totalQuantity > 0) totalQuantity else lorry.totalQuantity,
                     unit = if (unit.isNotBlank()) unit else lorry.unit,
-                    netWeight = netW ?: lorry.netWeight,
                     qualityItemsJson = if (qualityItems.isNotEmpty()) qualityJson else lorry.qualityItemsJson,
-                    status = nextStatus,
-                    currentStage = nextStage,
+                    status = LorryStatus.WAITING_FOR_UNLOADING.name,
+                    currentStage = "Electric Weighbridge",
                     updatedAt = System.currentTimeMillis()
                 )
                 repository.updateLorry(updated)
                 logAuditAction("MILL_GROSS_WEIGHT", lorry.gatePass, "Mill Gross: ${grossWeight.toInt()} kg, Party: ${updated.party}, Challan: ${updated.chalan}")
-                showToast("Mill Gross Weight & Party Challan recorded for ${lorry.gatePass}")
+                showToast("Mill Gross Weight recorded for ${lorry.gatePass}. Sent to Electric Weighbridge!")
             }
         }
     }
@@ -645,20 +638,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 (gatePass.isNotBlank() && it.lorryNumber.equals(gatePass.trim(), ignoreCase = true) && it.status != LorryStatus.COMPLETED.name) 
             }
             if (lorry != null) {
-                val currentStageIndex = LorryStatus.fromString(lorry.status).stageIndex
-                val targetStatus = LorryStatus.ELECTRIC_GROSS_DONE
-                val nextStatus = if (currentStageIndex < targetStatus.stageIndex) targetStatus.name else lorry.status
-                val nextStage = if (currentStageIndex < targetStatus.stageIndex) targetStatus.stageName else lorry.currentStage
-
                 val updated = lorry.copy(
                     electricGrossWeight = electricGrossWeight,
-                    status = nextStatus,
-                    currentStage = nextStage,
+                    status = LorryStatus.ELECTRIC_GROSS_DONE.name,
+                    currentStage = "Electric Weighbridge (Tare Stage)",
                     updatedAt = System.currentTimeMillis()
                 )
                 repository.updateLorry(updated)
                 logAuditAction("ELECTRIC_GROSS_WEIGHT", lorry.gatePass, "Electric Gross: ${electricGrossWeight.toInt()} kg")
-                showToast("Electric Gross Weight recorded for ${lorry.gatePass}")
+                showToast("Electric Gross Weight recorded for ${lorry.gatePass}. Ready for Electric Tare!")
             } else {
                 showToast("Vehicle record not found for Electric Gross Weight")
             }
@@ -671,17 +659,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val allList = repository.allLorriesList()
             val lorry = allList.find { it.gatePass == gatePass || (it.lorryNumber.equals(gatePass.trim(), ignoreCase = true) && it.status != LorryStatus.COMPLETED.name) }
             if (lorry != null) {
-                val hasTare = lorry.hasTareRecorded || (lorry.electricTareWeight != null && lorry.electricTareWeight > 0)
-                val targetStatus = if (hasTare) LorryStatus.READY_FOR_GATE_EXIT else LorryStatus.READY_FOR_GATE_EXIT
                 val updated = lorry.copy(
                     unloaded = true,
-                    status = targetStatus.name,
-                    currentStage = if (targetStatus == LorryStatus.READY_FOR_GATE_EXIT) "Ready For Gate Exit" else "Unloading Completed",
                     updatedAt = System.currentTimeMillis()
                 )
                 repository.updateLorry(updated)
                 logAuditAction("MARK_UNLOADED", lorry.gatePass, "Jute Unloading marked COMPLETED")
-                showToast("Unloading marked completed & Cleared for Exit for ${lorry.lorryNumber}")
+                showToast("Unloading marked completed for ${lorry.lorryNumber}")
             }
         }
     }
@@ -695,17 +679,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 (gatePass.isNotBlank() && it.lorryNumber.equals(gatePass.trim(), ignoreCase = true) && it.status != LorryStatus.COMPLETED.name) 
             }
             if (lorry != null) {
-                val targetStatus = LorryStatus.READY_FOR_GATE_EXIT
-
                 val updated = lorry.copy(
                     electricTareWeight = electricTareWeight,
-                    status = targetStatus.name,
-                    currentStage = targetStatus.stageName,
+                    status = LorryStatus.MILL_TARE_PENDING.name,
+                    currentStage = "Mill Weighbridge (Tare Stage)",
                     updatedAt = System.currentTimeMillis()
                 )
                 repository.updateLorry(updated)
                 logAuditAction("ELECTRIC_TARE_WEIGHT", lorry.gatePass, "Electric Tare: ${electricTareWeight.toInt()} kg")
-                showToast("Electric Tare Weight recorded & Cleared for Gate Exit for ${lorry.lorryNumber}")
+                showToast("Electric Tare Weight recorded for ${lorry.lorryNumber}. Sent to Mill Weighbridge for final Tare!")
             } else {
                 showToast("Vehicle record not found for Electric Tare Weight")
             }
@@ -721,18 +703,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 (gatePass.isNotBlank() && it.lorryNumber.equals(gatePass.trim(), ignoreCase = true) && it.status != LorryStatus.COMPLETED.name) 
             }
             if (lorry != null) {
-                val hasTare = (electricTareWeight != null && electricTareWeight > 0) || lorry.hasTareRecorded
+                val hasTare = (electricTareWeight != null && electricTareWeight > 0)
                 val targetStatus = when {
-                    hasTare || lorry.unloaded -> LorryStatus.READY_FOR_GATE_EXIT
+                    hasTare -> LorryStatus.MILL_TARE_PENDING
                     electricGrossWeight != null && electricGrossWeight > 0 -> LorryStatus.ELECTRIC_GROSS_DONE
                     else -> LorryStatus.fromString(lorry.status)
+                }
+                val targetStage = when {
+                    hasTare -> "Mill Weighbridge (Tare Stage)"
+                    electricGrossWeight != null && electricGrossWeight > 0 -> "Electric Weighbridge (Tare Stage)"
+                    else -> lorry.currentStage
                 }
 
                 val updated = lorry.copy(
                     electricGrossWeight = electricGrossWeight ?: lorry.electricGrossWeight,
                     electricTareWeight = electricTareWeight ?: lorry.electricTareWeight,
                     status = targetStatus.name,
-                    currentStage = targetStatus.stageName,
+                    currentStage = targetStage,
                     updatedAt = System.currentTimeMillis()
                 )
                 repository.updateLorry(updated)
@@ -748,27 +735,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         updateActivityTimestamp()
         viewModelScope.launch {
             val allList = repository.allLorriesList()
-            val lorry = allList.find { it.gatePass == gatePass }
+            val lorry = allList.find { it.gatePass == gatePass || (it.lorryNumber.equals(gatePass.trim(), ignoreCase = true) && it.status != LorryStatus.COMPLETED.name) }
             if (lorry != null) {
                 val gross = lorry.millGrossWeight ?: lorry.grossWeight ?: lorry.electricGrossWeight ?: 0.0
-                val net = if (gross > 0) gross - millTareWeight else 0.0
-
-                val currentStageIndex = LorryStatus.fromString(lorry.status).stageIndex
-                val targetStatus = LorryStatus.READY_FOR_GATE_EXIT
-                val nextStatus = if (currentStageIndex < targetStatus.stageIndex) targetStatus.name else lorry.status
-                val nextStage = if (currentStageIndex < targetStatus.stageIndex) targetStatus.stageName else lorry.currentStage
+                val net = if (gross > 0) (gross - millTareWeight).coerceAtLeast(0.0) else 0.0
 
                 val updated = lorry.copy(
                     millTareWeight = millTareWeight,
                     tareWeight = millTareWeight,
                     netWeight = net,
-                    status = nextStatus,
-                    currentStage = nextStage,
+                    status = LorryStatus.READY_FOR_GATE_EXIT.name,
+                    currentStage = "Gate Out",
                     updatedAt = System.currentTimeMillis()
                 )
                 repository.updateLorry(updated)
-                logAuditAction("MILL_TARE_VERIFY", gatePass, "Mill Tare: ${millTareWeight.toInt()} kg, Net Jute: ${net.toInt()} kg")
-                showToast("Mill Tare Verification completed for $gatePass")
+                logAuditAction("MILL_TARE_VERIFY", lorry.gatePass, "Mill Tare: ${millTareWeight.toInt()} kg, Net Jute: ${net.toInt()} kg")
+                showToast("Mill Tare Weight completed for ${lorry.lorryNumber}! Cleared for Main Gate Out.")
             }
         }
     }
