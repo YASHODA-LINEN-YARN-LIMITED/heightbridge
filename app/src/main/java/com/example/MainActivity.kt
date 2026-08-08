@@ -9,6 +9,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -68,6 +70,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -95,7 +98,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Set FLAG_SECURE to disable/block screenshots and screen recording
+        // Set FLAG_SECURE to prevent screenshots and screen recording for security
         window.setFlags(
             WindowManager.LayoutParams.FLAG_SECURE,
             WindowManager.LayoutParams.FLAG_SECURE
@@ -112,7 +115,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Enforce FLAG_SECURE on resume to keep screenshots and screen recording disabled
+        // Enforce FLAG_SECURE on resume to block screenshots and recording
         window.setFlags(
             WindowManager.LayoutParams.FLAG_SECURE,
             WindowManager.LayoutParams.FLAG_SECURE
@@ -189,6 +192,25 @@ fun BallyWeighbridgeApp(
                 else -> IndustrialBlue
             }
 
+            val rolePendingCount = remember(allLorries, currentUserRole) {
+                val pendingList = allLorries.filter { it.status != com.example.data.model.LorryStatus.COMPLETED.name && it.outTime.isNullOrEmpty() }
+                when (currentUserRole) {
+                    UserRole.MILL_WEIGHTMENT, UserRole.ELECTRIC_WEIGHTMENT -> {
+                        pendingList.count { it.effectiveDepartment.equals("Jute", ignoreCase = true) }
+                    }
+                    UserRole.STORE -> {
+                        pendingList.count { it.effectiveDepartment.equals("Store", ignoreCase = true) }
+                    }
+                    UserRole.FINISH_GOOD -> {
+                        pendingList.count { it.effectiveDepartment.equals("Finish Good", ignoreCase = true) }
+                    }
+                    UserRole.OTHER -> {
+                        pendingList.count { it.effectiveDepartment.equals("Other", ignoreCase = true) }
+                    }
+                    else -> pendingList.size
+                }
+            }
+
         Scaffold(
             topBar = {
                 TopAppBar(
@@ -216,6 +238,16 @@ fun BallyWeighbridgeApp(
                         }
                     },
                     actions = {
+                        IconButton(
+                            onClick = { viewModel.checkForAppUpdatesManually() },
+                            modifier = Modifier.testTag("top_app_bar_check_updates")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.SystemUpdate,
+                                contentDescription = "Check for OTA Updates",
+                                tint = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
                         IconButton(
                             onClick = { viewModel.logout() },
                             modifier = Modifier.testTag("top_app_bar_logout")
@@ -302,7 +334,7 @@ fun BallyWeighbridgeApp(
                             roleNavController.navigate("pending") { launchSingleTop = true }
                         },
                         icon = { Icon(Icons.Default.FormatListNumbered, contentDescription = "Pending Lorries") },
-                        label = { Text("Pending (${stats.pendingCount})") },
+                        label = { Text("Pending ($rolePendingCount)") },
                         colors = NavigationBarItemDefaults.colors(selectedIconColor = roleThemeColor)
                     )
 
@@ -482,8 +514,8 @@ fun BallyWeighbridgeApp(
                                 qualitiesList = qualitiesList,
                                 mokamsList = mokamsList,
                                 markasList = markasList,
-                                onSaveClick = { lorryNo, chalan, party, desc, qty, unit, gross, tare, items, mokam, marka, dept ->
-                                    viewModel.saveGateEntry(lorryNo, chalan, party, desc, qty, unit, gross, tare, items, mokam, marka, dept)
+                                onSaveClick = { lorryNo, chalan, party, desc, qty, unit, gross, tare, items, mokam, marka, dept, customGatePass ->
+                                    viewModel.saveGateEntry(lorryNo, chalan, party, desc, qty, unit, gross, tare, items, mokam, marka, dept, customGatePass)
                                     currentNavRoute = "dashboard"
                                     roleNavController.popBackStack("dashboard", false)
                                 },
@@ -552,8 +584,25 @@ fun BallyWeighbridgeApp(
                     }
 
                     composable("pending") {
+                        val roleFilteredLorries = remember(filteredLorries, currentUserRole) {
+                            when (currentUserRole) {
+                                UserRole.MILL_WEIGHTMENT, UserRole.ELECTRIC_WEIGHTMENT -> {
+                                    filteredLorries.filter { it.effectiveDepartment.equals("Jute", ignoreCase = true) }
+                                }
+                                UserRole.STORE -> {
+                                    filteredLorries.filter { it.effectiveDepartment.equals("Store", ignoreCase = true) }
+                                }
+                                UserRole.FINISH_GOOD -> {
+                                    filteredLorries.filter { it.effectiveDepartment.equals("Finish Good", ignoreCase = true) }
+                                }
+                                UserRole.OTHER -> {
+                                    filteredLorries.filter { it.effectiveDepartment.equals("Other", ignoreCase = true) }
+                                }
+                                else -> filteredLorries
+                            }
+                        }
                         PendingLorriesScreen(
-                            lorries = filteredLorries,
+                            lorries = roleFilteredLorries,
                             searchQuery = searchQuery,
                             onSearchChange = { viewModel.searchQuery.value = it },
                             activeFilter = filterStatus,
@@ -769,61 +818,74 @@ fun OtaUpdateBannerCard(
 ) {
     val context = LocalContext.current
 
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(8.dp)
-    ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                    Icon(
-                        imageVector = Icons.Default.SystemUpdate,
-                        contentDescription = "OTA Update Available",
-                        tint = Color(0xFF38BDF8),
-                        modifier = Modifier.size(28.dp)
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = "🚀 App Update Available! (v${updateDto.versionName})",
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            style = MaterialTheme.typography.titleSmall
-                        )
-                        Text(
-                            text = "Build Code: ${updateDto.versionCode} ${if (updateDto.isMandatory) "• Mandatory Update" else ""}",
-                            color = Color(0xFF94A3B8),
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                    }
-                }
-                if (!updateDto.isMandatory) {
-                    IconButton(onClick = onDismiss) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Close Banner",
-                            tint = Color.LightGray
-                        )
-                    }
-                }
+    AlertDialog(
+        onDismissRequest = {
+            if (!updateDto.isMandatory) {
+                onDismiss()
             }
-            if (!updateDto.releaseNotes.isNullOrEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = updateDto.releaseNotes,
-                    color = Color(0xFFE2E8F0),
-                    style = MaterialTheme.typography.bodySmall
+        },
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.SystemUpdate,
+                    contentDescription = null,
+                    tint = Color(0xFF0284C7),
+                    modifier = Modifier.size(28.dp)
                 )
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Text(
+                        text = "New Software Update Available",
+                        fontWeight = FontWeight.ExtraBold,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Text(
+                        text = "Version: v${updateDto.versionName} (Build ${updateDto.versionCode})",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color(0xFF64748B)
+                    )
+                }
             }
-            Spacer(modifier = Modifier.height(10.dp))
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+            ) {
+                if (updateDto.isMandatory) {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF2F2)),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                    ) {
+                        Text(
+                            text = "⚠️ Mandatory Update Required",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            color = Color(0xFFDC2626),
+                            modifier = Modifier.padding(8.dp)
+                        )
+                    }
+                }
+
+                if (!updateDto.releaseNotes.isNullOrEmpty()) {
+                    Text(
+                        text = "Release Notes:",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = Color(0xFF0F172A)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = updateDto.releaseNotes,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFF334155)
+                    )
+                }
+            }
+        },
+        confirmButton = {
             Button(
                 onClick = {
                     val rawUrl = updateDto.downloadUrl.trim()
@@ -832,18 +894,27 @@ fun OtaUpdateBannerCard(
                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl))
                         context.startActivity(intent)
                     } catch (e: Exception) {
-                        Toast.makeText(context, "Could not open link: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Could not open download link: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
                     }
                     onDismiss()
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.fillMaxWidth()
+                shape = RoundedCornerShape(8.dp)
             ) {
                 Icon(imageVector = Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Download & Update", fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Update Now", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            if (!updateDto.isMandatory) {
+                OutlinedButton(
+                    onClick = onDismiss,
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Later")
+                }
             }
         }
-    }
+    )
 }

@@ -433,7 +433,7 @@ fun MillWeightmentDashboard(
 
                                 // Vehicle Dropdown Select
                                 val juteLorries = remember(lorries) {
-                                    lorries.filter { it.effectiveDepartment == "Jute" && it.status != LorryStatus.COMPLETED.name && it.outTime.isNullOrEmpty() }
+                                    lorries.filter { it.effectiveDepartment.equals("Jute", ignoreCase = true) && it.status != LorryStatus.COMPLETED.name && it.outTime.isNullOrEmpty() }
                                 }
                                 val vehicleOptions = remember(juteLorries) {
                                     juteLorries.map { "${it.lorryNumber} (${it.gatePass})" }

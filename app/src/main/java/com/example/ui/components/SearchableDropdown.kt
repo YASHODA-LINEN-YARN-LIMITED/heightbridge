@@ -36,13 +36,14 @@ fun SearchableDropdown(
     selectedOption: String,
     onOptionSelected: (String) -> Unit,
     modifier: Modifier = Modifier,
-    placeholder: String = ""
+    placeholder: String = "",
+    readOnly: Boolean = false
 ) {
     var expanded by remember { mutableStateOf(false) }
     var searchText by remember { mutableStateOf("") }
 
-    val filteredOptions = remember(options, searchText) {
-        if (searchText.isBlank()) options
+    val filteredOptions = remember(options, searchText, readOnly) {
+        if (searchText.isBlank() || readOnly) options
         else {
             val query = searchText.trim().lowercase()
             options.filter { it.lowercase().contains(query) }
@@ -51,17 +52,20 @@ fun SearchableDropdown(
 
     Box(modifier = modifier) {
         OutlinedTextField(
-            value = if (expanded) searchText else selectedOption,
+            value = if (expanded && !readOnly) searchText else selectedOption,
             onValueChange = { newValue ->
-                searchText = newValue
-                onOptionSelected(newValue)
-                if (!expanded) expanded = true
+                if (!readOnly) {
+                    searchText = newValue
+                    onOptionSelected(newValue)
+                    if (!expanded) expanded = true
+                }
             },
+            readOnly = readOnly,
             label = { Text(label) },
             trailingIcon = {
                 IconButton(onClick = {
                     expanded = !expanded
-                    if (expanded) searchText = selectedOption
+                    if (expanded && !readOnly) searchText = selectedOption
                 }) {
                     Icon(
                         imageVector = if (expanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
@@ -70,13 +74,15 @@ fun SearchableDropdown(
                     )
                 }
             },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            },
+            leadingIcon = if (!readOnly) {
+                {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            } else null,
             singleLine = true,
             shape = RoundedCornerShape(10.dp),
             colors = OutlinedTextFieldDefaults.colors(
@@ -92,7 +98,7 @@ fun SearchableDropdown(
                 .onFocusChanged { focusState ->
                     if (focusState.isFocused && !expanded) {
                         expanded = true
-                        searchText = selectedOption
+                        if (!readOnly) searchText = selectedOption
                     }
                 }
                 .testTag("dropdown_$label")
@@ -127,8 +133,8 @@ fun SearchableDropdown(
                             Text(
                                 text = item,
                                 style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium,
-                                color = Color(0xFF111827)
+                                fontWeight = if (item == selectedOption) FontWeight.Bold else FontWeight.Medium,
+                                color = if (item == selectedOption) MaterialTheme.colorScheme.primary else Color(0xFF111827)
                             )
                         },
                         onClick = {

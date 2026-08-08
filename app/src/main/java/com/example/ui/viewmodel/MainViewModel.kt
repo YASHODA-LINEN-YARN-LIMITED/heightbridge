@@ -119,8 +119,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val selectedLorry = MutableStateFlow<LorryWeighment?>(null)
 
     // App Versioning & OTA Engine
-    val currentVersionCode = 2
-    val currentVersionName = "1.2.0"
+    val currentVersionCode = 1
+    val currentVersionName = "1.1.0"
     val availableAppUpdate = MutableStateFlow<AppUpdateDto?>(null)
     val isCheckingUpdate = MutableStateFlow(false)
 
@@ -187,11 +187,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             isCheckingUpdate.value = true
             val remoteUpdate = repository.getAppUpdateInfo()
-            if (remoteUpdate != null && remoteUpdate.versionCode > currentVersionCode) {
+            if (remoteUpdate != null) {
                 availableAppUpdate.value = remoteUpdate
-                toastMessage.value = "New update v${remoteUpdate.versionName} is available!"
+                if (remoteUpdate.versionCode > currentVersionCode) {
+                    toastMessage.value = "New update v${remoteUpdate.versionName} found!"
+                } else {
+                    toastMessage.value = "App is up to date (v$currentVersionName). Showing latest release details."
+                }
             } else {
-                toastMessage.value = "App is up to date (v$currentVersionName)."
+                toastMessage.value = "Unable to connect to update server."
             }
             isCheckingUpdate.value = false
         }
@@ -313,8 +317,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 "PENDING" -> lorry.status != LorryStatus.COMPLETED.name
                 "COMPLETED" -> lorry.status == LorryStatus.COMPLETED.name
                 "OVERDUE" -> lorry.status == LorryStatus.OVERDUE.name || getDaysInside(lorry.createdAt) >= 2
-                "MILL_PENDING" -> lorry.effectiveDepartment == "Jute" && lorry.status != LorryStatus.COMPLETED.name && (lorry.millGrossWeight == null || lorry.millGrossWeight == 0.0 || lorry.millTareWeight == null || lorry.millTareWeight == 0.0 || lorry.status == LorryStatus.GATE_ENTRY.name || lorry.status == LorryStatus.MILL_GROSS_PENDING.name || lorry.status == LorryStatus.MILL_TARE_PENDING.name)
-                "ELECTRIC_PENDING" -> lorry.effectiveDepartment == "Jute" && lorry.status != LorryStatus.COMPLETED.name && (lorry.electricGrossWeight == null || lorry.electricGrossWeight == 0.0 || lorry.electricTareWeight == null || lorry.electricTareWeight == 0.0 || lorry.status == LorryStatus.WAITING_FOR_UNLOADING.name || lorry.status == LorryStatus.ELECTRIC_GROSS_DONE.name || lorry.status == LorryStatus.ELECTRIC_TARE_DONE.name)
+                "MILL_PENDING" -> lorry.effectiveDepartment.equals("Jute", ignoreCase = true) && lorry.status != LorryStatus.COMPLETED.name && (lorry.millGrossWeight == null || lorry.millGrossWeight == 0.0 || lorry.millTareWeight == null || lorry.millTareWeight == 0.0 || lorry.status == LorryStatus.GATE_ENTRY.name || lorry.status == LorryStatus.MILL_GROSS_PENDING.name || lorry.status == LorryStatus.MILL_TARE_PENDING.name)
+                "ELECTRIC_PENDING" -> lorry.effectiveDepartment.equals("Jute", ignoreCase = true) && lorry.status != LorryStatus.COMPLETED.name && (lorry.electricGrossWeight == null || lorry.electricGrossWeight == 0.0 || lorry.electricTareWeight == null || lorry.electricTareWeight == 0.0 || lorry.status == LorryStatus.WAITING_FOR_UNLOADING.name || lorry.status == LorryStatus.ELECTRIC_GROSS_DONE.name || lorry.status == LorryStatus.ELECTRIC_TARE_DONE.name)
                 else -> true
             }
 
@@ -337,33 +341,33 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val vehiclesInside = pendingCount
 
         val waitingForMill = pending.count {
-            it.status == LorryStatus.GATE_ENTRY.name || it.status == LorryStatus.MILL_GROSS_PENDING.name || it.status == LorryStatus.MILL_TARE_PENDING.name
+            it.effectiveDepartment.equals("Jute", ignoreCase = true) && (it.status == LorryStatus.GATE_ENTRY.name || it.status == LorryStatus.MILL_GROSS_PENDING.name || it.status == LorryStatus.MILL_TARE_PENDING.name)
         }
         val activeMillCount = pending.count {
-            it.status == LorryStatus.MILL_GROSS_PENDING.name || it.status == LorryStatus.MILL_TARE_PENDING.name
+            it.effectiveDepartment.equals("Jute", ignoreCase = true) && (it.status == LorryStatus.MILL_GROSS_PENDING.name || it.status == LorryStatus.MILL_TARE_PENDING.name)
         }
         val completedMillToday = lorries.count {
-            (it.status != LorryStatus.GATE_ENTRY.name) && (it.date == todayStr || it.outDate == todayStr)
+            it.effectiveDepartment.equals("Jute", ignoreCase = true) && (it.status != LorryStatus.GATE_ENTRY.name) && (it.date == todayStr || it.outDate == todayStr)
         }
 
         val waitingForElectric = pending.count {
-            it.status == LorryStatus.WAITING_FOR_UNLOADING.name || it.status == LorryStatus.ELECTRIC_GROSS_DONE.name
+            it.effectiveDepartment.equals("Jute", ignoreCase = true) && (it.status == LorryStatus.WAITING_FOR_UNLOADING.name || it.status == LorryStatus.ELECTRIC_GROSS_DONE.name)
         }
         val activeElectricCount = pending.count {
-            it.status == LorryStatus.ELECTRIC_GROSS_DONE.name
+            it.effectiveDepartment.equals("Jute", ignoreCase = true) && (it.status == LorryStatus.ELECTRIC_GROSS_DONE.name)
         }
         val completedElectricToday = lorries.count {
-            (it.status == LorryStatus.ELECTRIC_TARE_DONE.name || it.status == LorryStatus.READY_FOR_GATE_EXIT.name || it.status == LorryStatus.COMPLETED.name) && (it.date == todayStr || it.outDate == todayStr)
+            it.effectiveDepartment.equals("Jute", ignoreCase = true) && (it.status == LorryStatus.ELECTRIC_TARE_DONE.name || it.status == LorryStatus.READY_FOR_GATE_EXIT.name || it.status == LorryStatus.COMPLETED.name) && (it.date == todayStr || it.outDate == todayStr)
         }
 
         val waitingForUnload = pending.count {
-            (it.status == LorryStatus.WAITING_FOR_UNLOADING.name) && !it.unloaded
+            it.effectiveDepartment.equals("Jute", ignoreCase = true) && (it.status == LorryStatus.WAITING_FOR_UNLOADING.name) && !it.unloaded
         }
         val activeUnloadCount = pending.count {
-            it.unloaded && it.status != LorryStatus.COMPLETED.name && it.status != LorryStatus.READY_FOR_GATE_EXIT.name
+            it.effectiveDepartment.equals("Jute", ignoreCase = true) && it.unloaded && it.status != LorryStatus.COMPLETED.name && it.status != LorryStatus.READY_FOR_GATE_EXIT.name
         }
         val completedUnloadToday = lorries.count {
-            it.unloaded && (it.date == todayStr || it.outDate == todayStr)
+            it.effectiveDepartment.equals("Jute", ignoreCase = true) && it.unloaded && (it.date == todayStr || it.outDate == todayStr)
         }
 
         val waitingForGate = pending.count {
@@ -446,10 +450,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         logAuditAction("LOGOUT", "SYSTEM", "$prevRole session ended")
     }
 
-    fun generateGatePassNumber(): String {
+    fun generateGatePassNumber(department: String = ""): String {
         val datePart = SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(Date())
         val randomSuffix = (1000..9999).random()
-        return "GE-$datePart-$randomSuffix"
+        val prefix = when {
+            department.contains("store", ignoreCase = true) -> "STORE"
+            department.contains("finish", ignoreCase = true) -> "FINISH"
+            department.contains("other", ignoreCase = true) -> "OTHER"
+            department.contains("jute", ignoreCase = true) -> "JUTE"
+            else -> "JUTE"
+        }
+        return "$prefix-$datePart-$randomSuffix"
     }
 
     fun saveGateEntry(
@@ -464,11 +475,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         qualityItems: List<QualityItem>,
         mokam: String,
         marka: String,
-        department: String = ""
+        department: String = "",
+        customGatePass: String = ""
     ) {
         updateActivityTimestamp()
         viewModelScope.launch {
-            val gatePass = generateGatePassNumber()
+            val gatePass = if (customGatePass.isNotBlank()) customGatePass else generateGatePassNumber(department)
             val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
             val timeStr = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date())
             val netW = if (grossWeight != null && tareWeight != null) grossWeight - tareWeight else null

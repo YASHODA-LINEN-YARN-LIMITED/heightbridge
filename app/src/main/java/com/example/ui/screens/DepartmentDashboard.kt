@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,14 +14,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material.icons.filled.LocalShipping
-import androidx.compose.material.icons.filled.NoteAdd
 import androidx.compose.material.icons.filled.Store
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -32,10 +35,9 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -55,7 +57,6 @@ import com.example.data.model.UserRole
 import com.example.ui.components.SearchableDropdown
 import com.example.ui.theme.IndustrialBlue
 import com.example.ui.theme.StatusGreen
-import com.example.ui.theme.StatusOrange
 
 @Composable
 fun DepartmentDashboard(
@@ -98,6 +99,8 @@ fun DepartmentDashboard(
     var selectedGatePass by remember { mutableStateOf("") }
     val selectedLorry = deptLorries.find { it.gatePass == selectedGatePass } ?: deptLorries.firstOrNull()
 
+    var dialogLorry by remember { mutableStateOf<LorryWeighment?>(null) }
+
     var loadUnloadStatus by remember { mutableStateOf("Unloaded") }
     var departmentRemarks by remember { mutableStateOf("") }
     var clearForMainGateOut by remember { mutableStateOf(true) }
@@ -131,7 +134,7 @@ fun DepartmentDashboard(
                             color = Color.White
                         )
                         Text(
-                            text = "Manage $deptName Vehicles • Load/Unload Status & Clear for Main Gate Out",
+                            text = "Active Vehicles & Load/Unload Operations",
                             style = MaterialTheme.typography.labelMedium,
                             color = Color.White.copy(alpha = 0.85f)
                         )
@@ -146,6 +149,154 @@ fun DepartmentDashboard(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Table Format Section for Lorries
+            item {
+                Card(
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "📋 $deptName Active Lorries Table",
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = deptThemeColor,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = deptThemeColor.copy(alpha = 0.1f)),
+                                shape = RoundedCornerShape(20.dp)
+                            ) {
+                                Text(
+                                    text = "${deptLorries.size} Vehicles",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp,
+                                    color = deptThemeColor,
+                                    maxLines = 1,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        if (deptLorries.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 24.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(
+                                        imageVector = Icons.Default.LocalShipping,
+                                        contentDescription = null,
+                                        tint = Color(0xFF94A3B8),
+                                        modifier = Modifier.size(36.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "No pending lorries found for $deptName department",
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 14.sp,
+                                        color = Color(0xFF64748B)
+                                    )
+                                }
+                            }
+                        } else {
+                            // Table Header
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(deptThemeColor.copy(alpha = 0.1f), shape = RoundedCornerShape(8.dp))
+                                    .padding(vertical = 10.dp, horizontal = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Lorry No.", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = deptThemeColor, modifier = Modifier.weight(1.3f))
+                                Text("Gate Pass", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = deptThemeColor, modifier = Modifier.weight(1.5f))
+                                Text("Party / Category", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = deptThemeColor, modifier = Modifier.weight(1.6f))
+                                Text("In Time", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = deptThemeColor, modifier = Modifier.weight(1.1f))
+                                Text("Action", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = deptThemeColor, modifier = Modifier.weight(0.9f))
+                            }
+
+                            Divider(color = Color(0xFFE2E8F0), thickness = 1.dp)
+
+                            deptLorries.forEachIndexed { index, lorry ->
+                                val isSelected = selectedLorry?.gatePass == lorry.gatePass
+                                val rowBg = if (isSelected) deptThemeColor.copy(alpha = 0.12f) else if (index % 2 == 0) Color(0xFFFAFAFA) else Color.White
+
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(rowBg, shape = RoundedCornerShape(4.dp))
+                                        .clickable {
+                                            selectedGatePass = lorry.gatePass
+                                            dialogLorry = lorry
+                                        }
+                                        .padding(vertical = 10.dp, horizontal = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = lorry.lorryNumber,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp,
+                                        color = if (isSelected) deptThemeColor else Color(0xFF0F172A),
+                                        modifier = Modifier.weight(1.3f)
+                                    )
+                                    Text(
+                                        text = lorry.gatePass,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color(0xFF334155),
+                                        modifier = Modifier.weight(1.5f)
+                                    )
+                                    Text(
+                                        text = if (lorry.party.isNotBlank()) lorry.party else lorry.description,
+                                        fontSize = 12.sp,
+                                        maxLines = 1,
+                                        color = Color(0xFF475569),
+                                        modifier = Modifier.weight(1.6f)
+                                    )
+                                    Text(
+                                        text = lorry.inTime.ifBlank { "N/A" },
+                                        fontSize = 11.sp,
+                                        color = Color(0xFF64748B),
+                                        modifier = Modifier.weight(1.1f)
+                                    )
+                                    Box(modifier = Modifier.weight(0.9f)) {
+                                        Card(
+                                            colors = CardDefaults.cardColors(containerColor = deptThemeColor),
+                                            shape = RoundedCornerShape(6.dp),
+                                            modifier = Modifier.clickable {
+                                                selectedGatePass = lorry.gatePass
+                                                dialogLorry = lorry
+                                            }
+                                        ) {
+                                            Text(
+                                                text = "View",
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                                Divider(color = Color(0xFFF1F5F9), thickness = 1.dp)
+                            }
+                        }
+                    }
+                }
+            }
+
             // Vehicle Selection Dropdown Section
             item {
                 Card(
@@ -156,7 +307,7 @@ fun DepartmentDashboard(
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            text = "1. Select $deptName Vehicle",
+                            text = "Select Vehicle to Process",
                             fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.titleMedium,
                             color = deptThemeColor
@@ -164,30 +315,17 @@ fun DepartmentDashboard(
                         Spacer(modifier = Modifier.height(10.dp))
 
                         if (deptLorries.isEmpty()) {
-                            Card(
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
-                                shape = RoundedCornerShape(8.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(14.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(Icons.Default.LocalShipping, contentDescription = null, tint = Color.Gray)
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Text(
-                                        text = "No pending lorries found for $deptName department.",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = Color.DarkGray
-                                    )
-                                }
-                            }
+                            Text(
+                                text = "No active vehicles available for $deptName department.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Color.Gray
+                            )
                         } else {
                             val optionsList = deptLorries.map { "${it.lorryNumber} (${it.gatePass} - ${it.party.ifBlank { "No Party" }})" }
                             val currentSelectedStr = selectedLorry?.let { "${it.lorryNumber} (${it.gatePass} - ${it.party.ifBlank { "No Party" }})" } ?: ""
 
                             SearchableDropdown(
-                                label = "Select Vehicle Number Dropdown ($deptName)",
+                                label = "Select Vehicle Number ($deptName)",
                                 options = optionsList,
                                 selectedOption = currentSelectedStr,
                                 onOptionSelected = { selected ->
@@ -253,23 +391,30 @@ fun DepartmentDashboard(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Column {
-                                    Text("Party:", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                                    Text("Party / Vendor:", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
                                     Text(lorry.party.ifBlank { "N/A" }, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                 }
-                                Column {
-                                    Text("Chalan No:", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
-                                    Text(lorry.chalan.ifBlank { "N/A" }, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                if (lorry.effectiveDepartment.equals("Jute", ignoreCase = true)) {
+                                    Column {
+                                        Text("Chalan No:", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                                        Text(lorry.chalan.ifBlank { "N/A" }, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    }
+                                } else {
+                                    Column {
+                                        Text("Quantity:", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                                        Text("${lorry.totalQuantity} ${lorry.unit.ifBlank { "Units" }}", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    }
                                 }
                                 Column {
                                     Text("Category:", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
-                                    Text(lorry.description, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    Text(lorry.description.ifBlank { "General Material" }, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                 }
                             }
 
                             Spacer(modifier = Modifier.height(16.dp))
 
                             Text(
-                                text = "2. Department Load / Unload Status",
+                                text = "Load / Unload Status",
                                 fontWeight = FontWeight.Bold,
                                 style = MaterialTheme.typography.titleMedium,
                                 color = deptThemeColor
@@ -300,7 +445,7 @@ fun DepartmentDashboard(
                             Spacer(modifier = Modifier.height(16.dp))
 
                             Text(
-                                text = "3. $deptName Person Remarks",
+                                text = "$deptName Remarks",
                                 fontWeight = FontWeight.Bold,
                                 style = MaterialTheme.typography.titleMedium,
                                 color = deptThemeColor
@@ -389,5 +534,91 @@ fun DepartmentDashboard(
                 }
             }
         }
+    }
+
+    // Full Details Modal Dialog when a row is clicked
+    dialogLorry?.let { lorry ->
+        AlertDialog(
+            onDismissRequest = { dialogLorry = null },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.LocalShipping, contentDescription = null, tint = deptThemeColor, modifier = Modifier.size(28.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(text = "Lorry Details: ${lorry.lorryNumber}", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
+                        Text(text = "Gate Entry No: ${lorry.gatePass}", fontSize = 12.sp, color = Color.Gray)
+                    }
+                }
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Divider(color = Color(0xFFE2E8F0))
+                    DetailRow("Vehicle Number", lorry.lorryNumber)
+                    DetailRow("Gate Entry Pass", lorry.gatePass)
+                    DetailRow("Department", lorry.effectiveDepartment)
+                    DetailRow("Current Stage", lorry.currentStage)
+                    DetailRow("Status", lorry.status)
+                    DetailRow("Entry Date", lorry.date)
+                    DetailRow("In Time", lorry.inTime)
+                    DetailRow("Party / Vendor", lorry.party.ifBlank { "N/A" })
+                    DetailRow("Category / Desc", lorry.description)
+                    DetailRow("Quantity", "${lorry.totalQuantity} ${lorry.unit}")
+                    
+                    if (lorry.effectiveDepartment.equals("Jute", ignoreCase = true)) {
+                        if (lorry.chalan.isNotBlank()) {
+                            DetailRow("Chalan Number", lorry.chalan)
+                        }
+                        if (lorry.millGrossWeight != null && lorry.millGrossWeight > 0) {
+                            DetailRow("Mill Gross Weight", "${lorry.millGrossWeight} MT")
+                        }
+                        if (lorry.millTareWeight != null && lorry.millTareWeight > 0) {
+                            DetailRow("Mill Tare Weight", "${lorry.millTareWeight} MT")
+                        }
+                        if (lorry.electricGrossWeight != null && lorry.electricGrossWeight > 0) {
+                            DetailRow("Electric Gross Wt", "${lorry.electricGrossWeight} MT")
+                        }
+                        if (lorry.electricTareWeight != null && lorry.electricTareWeight > 0) {
+                            DetailRow("Electric Tare Wt", "${lorry.electricTareWeight} MT")
+                        }
+                    }
+                    if (!lorry.remarks.isNullOrBlank()) {
+                        DetailRow("Remarks", lorry.remarks)
+                    }
+                    Divider(color = Color(0xFFE2E8F0))
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        selectedGatePass = lorry.gatePass
+                        dialogLorry = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = deptThemeColor)
+                ) {
+                    Text("Select for Processing")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { dialogLorry = null }) {
+                    Text("Close")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun DetailRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(text = label, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, color = Color(0xFF64748B))
+        Text(text = value, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFF0F172A))
     }
 }

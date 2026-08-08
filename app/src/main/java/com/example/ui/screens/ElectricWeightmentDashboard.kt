@@ -224,7 +224,7 @@ fun ElectricWeightmentDashboard(
                                     val matched = pendingLorries.find {
                                         "${it.lorryNumber} (${it.gatePass})" == selected || it.lorryNumber.equals(selected, ignoreCase = true) || selected.contains(it.gatePass)
                                     } ?: lorries.find {
-                                        it.effectiveDepartment == "Jute" && ("${it.lorryNumber} (${it.gatePass})" == selected || it.lorryNumber.equals(selected, ignoreCase = true) || selected.contains(it.gatePass))
+                                        it.effectiveDepartment.equals("Jute", ignoreCase = true) && ("${it.lorryNumber} (${it.gatePass})" == selected || it.lorryNumber.equals(selected, ignoreCase = true) || selected.contains(it.gatePass))
                                     }
 
                                     if (matched != null) {

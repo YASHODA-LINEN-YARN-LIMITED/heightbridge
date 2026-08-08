@@ -229,90 +229,140 @@ fun LorryItemCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Weights Summary Box
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(
-                        color = Color(0xFFF8FAFC),
-                        shape = RoundedCornerShape(8.dp)
-                    )
-                    .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(8.dp))
-                    .padding(8.dp)
-            ) {
-                // Row 1: Gross Weights
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceAround
+            val isJuteDepartment = lorry.effectiveDepartment.equals("Jute", ignoreCase = true)
+
+            if (isJuteDepartment) {
+                // Weights Summary Box for Jute Vehicles
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            color = Color(0xFFF8FAFC),
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                        .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(8.dp))
+                        .padding(8.dp)
                 ) {
-                    WeightChip(
-                        label = "Gate Gross",
-                        weight = lorry.grossWeight,
-                        modifier = Modifier.weight(1f)
-                    )
-                    WeightChip(
-                        label = "Mill Gross",
-                        weight = lorry.millGrossWeight,
-                        modifier = Modifier.weight(1f)
-                    )
-                    WeightChip(
-                        label = "Elec Gross",
-                        weight = lorry.electricGrossWeight,
-                        modifier = Modifier.weight(1f)
-                    )
+                    // Row 1: Gross Weights
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceAround
+                    ) {
+                        WeightChip(
+                            label = "Gate Gross",
+                            weight = lorry.grossWeight,
+                            modifier = Modifier.weight(1f)
+                        )
+                        WeightChip(
+                            label = "Mill Gross",
+                            weight = lorry.millGrossWeight,
+                            modifier = Modifier.weight(1f)
+                        )
+                        WeightChip(
+                            label = "Elec Gross",
+                            weight = lorry.electricGrossWeight,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+                    HorizontalDivider(color = Color(0xFFE2E8F0))
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // Row 2: Tare & Net Weights
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceAround
+                    ) {
+                        WeightChip(
+                            label = "Mill Tare",
+                            weight = lorry.millTareWeight,
+                            modifier = Modifier.weight(1f)
+                        )
+                        WeightChip(
+                            label = "Elec Tare",
+                            weight = lorry.electricTareWeight,
+                            modifier = Modifier.weight(1f)
+                        )
+                        WeightChip(
+                            label = "Mill Net",
+                            weight = lorry.millNetWeight,
+                            modifier = Modifier.weight(1f)
+                        )
+                        WeightChip(
+                            label = "Elec Net",
+                            weight = lorry.electricNetWeight,
+                            modifier = Modifier.weight(1f)
+                        )
+                        WeightChip(
+                            label = "Final Net",
+                            weight = lorry.lowestNetWeight ?: lorry.netWeight,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
-                HorizontalDivider(color = Color(0xFFE2E8F0))
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                // Row 2: Tare & Net Weights
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceAround
+                // Process Workflow Stepper Progress Tracker
+                val stageIndex = when (statusEnum) {
+                    LorryStatus.GATE_ENTRY -> 1
+                    LorryStatus.MILL_GROSS_PENDING -> 2
+                    LorryStatus.WAITING_FOR_UNLOADING -> 3
+                    LorryStatus.ELECTRIC_GROSS_DONE -> 4
+                    LorryStatus.ELECTRIC_TARE_DONE -> 5
+                    LorryStatus.MILL_TARE_PENDING -> 6
+                    LorryStatus.READY_FOR_GATE_EXIT, LorryStatus.COMPLETED -> 7
+                    else -> 1
+                }
+                ProcessFlowStepper(currentStageIndex = stageIndex)
+            } else {
+                // Simplified Department Vehicle Summary Box for Store, Finish Good & Other
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            color = Color(0xFFF0FDF4),
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                        .border(1.dp, Color(0xFFBBF7D0), RoundedCornerShape(8.dp))
+                        .padding(10.dp)
                 ) {
-                    WeightChip(
-                        label = "Mill Tare",
-                        weight = lorry.millTareWeight,
-                        modifier = Modifier.weight(1f)
-                    )
-                    WeightChip(
-                        label = "Elec Tare",
-                        weight = lorry.electricTareWeight,
-                        modifier = Modifier.weight(1f)
-                    )
-                    WeightChip(
-                        label = "Mill Net",
-                        weight = lorry.millNetWeight,
-                        modifier = Modifier.weight(1f)
-                    )
-                    WeightChip(
-                        label = "Elec Net",
-                        weight = lorry.electricNetWeight,
-                        modifier = Modifier.weight(1f)
-                    )
-                    WeightChip(
-                        label = "Final Net",
-                        weight = lorry.lowestNetWeight ?: lorry.netWeight,
-                        modifier = Modifier.weight(1f)
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "Department: ${lorry.effectiveDepartment.ifBlank { "Store / FG" }}",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                color = Color(0xFF166534)
+                            )
+                            if (lorry.party.isNotBlank()) {
+                                Text(
+                                    text = "Party: ${lorry.party}",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF15803D)
+                                )
+                            }
+                        }
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFDCFCE7)),
+                            shape = RoundedCornerShape(6.dp)
+                        ) {
+                            Text(
+                                text = lorry.currentStage,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 11.sp,
+                                color = Color(0xFF15803D),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
                 }
             }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Process Workflow Stepper Progress Tracker
-            val stageIndex = when (statusEnum) {
-                LorryStatus.GATE_ENTRY -> 1
-                LorryStatus.MILL_GROSS_PENDING -> 2
-                LorryStatus.WAITING_FOR_UNLOADING -> 3
-                LorryStatus.ELECTRIC_GROSS_DONE -> 4
-                LorryStatus.ELECTRIC_TARE_DONE -> 5
-                LorryStatus.MILL_TARE_PENDING -> 6
-                LorryStatus.READY_FOR_GATE_EXIT, LorryStatus.COMPLETED -> 7
-                else -> 1
-            }
-            ProcessFlowStepper(currentStageIndex = stageIndex)
 
             // Live Time Inside & AI Operational Predictions
             Spacer(modifier = Modifier.height(8.dp))

@@ -90,10 +90,10 @@ data class LorryWeighmentDto(
         val bestNet = gateNetVal ?: (if (bestGross != null && bestTare != null) bestGross - bestTare else null)
 
         val deptCandidate = when {
-            !department.isNullOrBlank() -> department
-            !millRemarks.isNullOrBlank() && millRemarks.contains("Department:", ignoreCase = true) -> millRemarks.substringAfter("Department:").substringBefore("\n").trim()
-            !description.isNullOrBlank() -> description
-            !status.isNullOrBlank() -> status
+            !department.isNullOrBlank() && department != "Select Department" -> department
+            !millRemarks.isNullOrBlank() && millRemarks.contains("Department:", ignoreCase = true) -> millRemarks.substringAfter("Department:").substringBefore("\n").substringBefore("|").trim()
+            !status.isNullOrBlank() && (status.contains("store", ignoreCase = true) || status.contains("finish", ignoreCase = true) || status.contains("other", ignoreCase = true) || status.contains("jute", ignoreCase = true)) -> status
+            !description.isNullOrBlank() && (description.contains("store", ignoreCase = true) || description.contains("finish", ignoreCase = true) || description.contains("other", ignoreCase = true) || description.contains("jute", ignoreCase = true)) -> description
             else -> "Jute"
         }
         val resolvedDept = when {

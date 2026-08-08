@@ -74,13 +74,16 @@ fun NewGateEntryScreen(
         qualityItems: List<QualityItem>,
         mokam: String,
         marka: String,
-        department: String
+        department: String,
+        customGatePass: String
     ) -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val todayDate = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()) }
     val currentTime = remember { SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date()) }
+    val datePart = remember { SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(Date()) }
+    val randomSuffix = remember { (1000..9999).random() }
 
     var dateText by remember { mutableStateOf(todayDate) }
     var lorryNumber by remember { mutableStateOf("") }
@@ -89,6 +92,22 @@ fun NewGateEntryScreen(
     var inTimeText by remember { mutableStateOf(currentTime) }
     var remarksText by remember { mutableStateOf("") }
     var showConfirmDialog by remember { mutableStateOf(false) }
+
+    val effectiveGatePass = remember(selectedDepartment, generatedGatePass) {
+        val prefix = when {
+            selectedDepartment.contains("store", ignoreCase = true) -> "STORE"
+            selectedDepartment.contains("finish", ignoreCase = true) -> "FINISH"
+            selectedDepartment.contains("other", ignoreCase = true) -> "OTHER"
+            selectedDepartment.contains("jute", ignoreCase = true) -> "JUTE"
+            else -> "JUTE"
+        }
+        val suffix = if (generatedGatePass.isNotBlank() && generatedGatePass.contains("-")) {
+            generatedGatePass.substringAfter("-")
+        } else {
+            "$datePart-$randomSuffix"
+        }
+        "$prefix-$suffix"
+    }
 
     val standardInputColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = Color(0xFF111827),
@@ -299,10 +318,11 @@ fun NewGateEntryScreen(
                         Spacer(modifier = Modifier.height(12.dp))
 
                         SearchableDropdown(
-                            label = "Select Department",
+                            label = "Department *",
                             options = MasterDataLists.DEPARTMENTS,
                             selectedOption = selectedDepartment,
-                            onOptionSelected = { selectedDepartment = it }
+                            onOptionSelected = { selectedDepartment = it },
+                            readOnly = true
                         )
 
                         Spacer(modifier = Modifier.height(12.dp))
@@ -320,7 +340,7 @@ fun NewGateEntryScreen(
                         Spacer(modifier = Modifier.height(12.dp))
 
                         OutlinedTextField(
-                            value = generatedGatePass,
+                            value = effectiveGatePass,
                             onValueChange = {},
                             readOnly = true,
                             label = { Text("Gate Entry No. (Auto Generated)") },
@@ -412,7 +432,7 @@ fun NewGateEntryScreen(
                                 verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
                                 Text(
-                                    text = "Gate Entry No: $generatedGatePass",
+                                    text = "Gate Entry No: $effectiveGatePass",
                                     fontWeight = FontWeight.Bold,
                                     style = MaterialTheme.typography.bodySmall
                                 )
@@ -462,7 +482,8 @@ fun NewGateEntryScreen(
                                 emptyList(),
                                 "",
                                 "",
-                                selectedDepartment
+                                selectedDepartment,
+                                effectiveGatePass
                             )
                             // Reset all entry form fields to blank after submission
                             lorryNumber = ""
