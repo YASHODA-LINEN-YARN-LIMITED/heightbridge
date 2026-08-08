@@ -67,16 +67,19 @@ fun StatusBadge(
         LorryStatus.ELECTRIC_GROSS_DONE -> StatusPurple.copy(alpha = 0.15f) to "Electric Weightment"
         LorryStatus.ELECTRIC_TARE_DONE -> StatusPurple.copy(alpha = 0.15f) to "Ele. Tare Done"
         LorryStatus.MILL_TARE_PENDING -> StatusOrange.copy(alpha = 0.15f) to "Mill Tare Pending"
+        LorryStatus.STORE_PENDING -> StatusBlue.copy(alpha = 0.15f) to "Store Pending"
+        LorryStatus.FINISH_GOOD_PENDING -> StatusGreen.copy(alpha = 0.15f) to "Finish Good"
+        LorryStatus.OTHER_PENDING -> StatusOrange.copy(alpha = 0.15f) to "Other Dept"
         LorryStatus.READY_FOR_GATE_EXIT -> StatusBlue.copy(alpha = 0.15f) to "Ready Gate Exit"
         LorryStatus.COMPLETED -> StatusGreen.copy(alpha = 0.15f) to "Completed"
         LorryStatus.OVERDUE -> StatusRed.copy(alpha = 0.15f) to "Overdue"
     }
 
     val textColor = when (status) {
-        LorryStatus.GATE_ENTRY, LorryStatus.READY_FOR_GATE_EXIT -> StatusBlue
-        LorryStatus.MILL_GROSS_PENDING, LorryStatus.WAITING_FOR_UNLOADING, LorryStatus.MILL_TARE_PENDING -> StatusOrange
+        LorryStatus.GATE_ENTRY, LorryStatus.READY_FOR_GATE_EXIT, LorryStatus.STORE_PENDING -> StatusBlue
+        LorryStatus.MILL_GROSS_PENDING, LorryStatus.WAITING_FOR_UNLOADING, LorryStatus.MILL_TARE_PENDING, LorryStatus.OTHER_PENDING -> StatusOrange
         LorryStatus.ELECTRIC_GROSS_DONE, LorryStatus.ELECTRIC_TARE_DONE -> StatusPurple
-        LorryStatus.COMPLETED -> StatusGreen
+        LorryStatus.COMPLETED, LorryStatus.FINISH_GOOD_PENDING -> StatusGreen
         LorryStatus.OVERDUE -> StatusRed
     }
 

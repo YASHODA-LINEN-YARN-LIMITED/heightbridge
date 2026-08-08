@@ -319,7 +319,7 @@ fun MillWeightmentDashboard(
                                             color = Color(0xFF111827)
                                         )
                                         Text(
-                                            text = "Gate Pass: ${lorry.gatePass} | Entry Time: ${lorry.inTime.ifBlank { "N/A" }}",
+                                            text = "Gate Entry No: ${lorry.gatePass} | Entry Time: ${lorry.inTime.ifBlank { "N/A" }}",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = Color(0xFF475569)
                                         )

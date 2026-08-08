@@ -31,6 +31,24 @@ enum class UserRole(
         defaultPassword = "Ele@123",
         description = "Record Electric Gross Weight, Mark Unloading, Record Electric Tare Weight"
     ),
+    STORE(
+        title = "Store",
+        defaultUsername = "Store",
+        defaultPassword = "Store@123",
+        description = "Process Store Dept Lorries, Input Remarks & Clear for Gate Out"
+    ),
+    FINISH_GOOD(
+        title = "Finish Good",
+        defaultUsername = "Finish Good",
+        defaultPassword = "Finish@123",
+        description = "Process Finish Good Dept Lorries, Input Remarks & Clear for Gate Out"
+    ),
+    OTHER(
+        title = "Other",
+        defaultUsername = "Other",
+        defaultPassword = "Other@123",
+        description = "Process Other Dept Lorries, Input Remarks & Clear for Gate Out"
+    ),
     SUPER_ADMIN(
         title = "Super Admin",
         defaultUsername = "Super Admin",
@@ -51,6 +69,9 @@ enum class LorryStatus(
     ELECTRIC_GROSS_DONE("Ele. Gross Done", StatusPurple, 4, "Electric Weighbridge"),
     ELECTRIC_TARE_DONE("Ele. Tare Done", StatusPurple, 5, "Electric Weighbridge"),
     MILL_TARE_PENDING("Mill Tare Pending", StatusOrange, 6, "Mill Weighbridge"),
+    STORE_PENDING("Store Pending", StatusOrange, 2, "Store Dept"),
+    FINISH_GOOD_PENDING("Finish Good Pending", StatusOrange, 2, "Finish Good Dept"),
+    OTHER_PENDING("Other Pending", StatusOrange, 2, "Other Dept"),
     READY_FOR_GATE_EXIT("Ready Gate Exit", StatusBlue, 7, "Gate Out"),
     COMPLETED("Completed", StatusGreen, 8, "Lorry Out"),
     OVERDUE("Overdue", StatusRed, 0, "Overdue Inside Mill");
@@ -64,9 +85,11 @@ enum class LorryStatus(
 }
 
 object MasterDataLists {
+    val DEPARTMENTS = listOf("Jute", "Store", "Finish Good", "Other")
+
     val UNITS = listOf("BALES", "DRUMS", "LOOSE", "H.BALES", "P.BALES")
 
-    val DESCRIPTIONS = listOf("Jute", "Jute Silver")
+    val DESCRIPTIONS = listOf("Jute", "Store Material", "Finish Good Material", "Other Material")
 
     val DEFAULT_BROKERS = listOf(
         "Ambagan Traders",

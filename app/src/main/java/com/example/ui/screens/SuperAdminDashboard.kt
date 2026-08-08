@@ -1359,7 +1359,7 @@ fun BackupModuleView(
 ) {
     var updateVersionCode by remember { mutableStateOf("2") }
     var updateVersionName by remember { mutableStateOf("1.1.0") }
-    var updateDownloadUrl by remember { mutableStateOf("https://github.com/YASHODA-LINEN-YARN-LIMITED/heightbridge") }
+    var updateDownloadUrl by remember { mutableStateOf("https://github.com/mis-cell/weight_bridge/raw/main/app-debug.apk") }
     var updateReleaseNotes by remember { mutableStateOf("New Update v1.1.0: Realtime multi-device sync improvements & security updates.") }
     var updateIsMandatory by remember { mutableStateOf(false) }
 

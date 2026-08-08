@@ -74,6 +74,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.data.model.LorryWeighment
 import com.example.data.model.UserRole
+import com.example.ui.screens.DepartmentDashboard
 import com.example.ui.screens.ElectricWeightmentDashboard
 import com.example.ui.screens.GateOutScreen
 import com.example.ui.screens.GeoFenceRestrictionDialog
@@ -174,10 +175,13 @@ fun BallyWeighbridgeApp(
             val roleThemeColor = when (currentUserRole) {
                 UserRole.MAIN_GATE -> IndustrialBlue
                 UserRole.MILL_WEIGHTMENT -> StatusGreen
-            UserRole.ELECTRIC_WEIGHTMENT -> StatusPurple
-            UserRole.SUPER_ADMIN -> StatusRed
-            else -> IndustrialBlue
-        }
+                UserRole.ELECTRIC_WEIGHTMENT -> StatusPurple
+                UserRole.STORE -> Color(0xFF0284C7)
+                UserRole.FINISH_GOOD -> Color(0xFF059669)
+                UserRole.OTHER -> Color(0xFFD97706)
+                UserRole.SUPER_ADMIN -> StatusRed
+                else -> IndustrialBlue
+            }
 
         Scaffold(
             topBar = {
@@ -236,9 +240,14 @@ fun BallyWeighbridgeApp(
                         icon = { Icon(Icons.Default.Dashboard, contentDescription = "Dashboard") },
                         label = {
                             Text(
-                                if (currentUserRole == UserRole.MILL_WEIGHTMENT) "Mill Wt"
-                                else if (currentUserRole == UserRole.ELECTRIC_WEIGHTMENT) "Electric Wt"
-                                else "Dashboard"
+                                when (currentUserRole) {
+                                    UserRole.MILL_WEIGHTMENT -> "Mill Wt"
+                                    UserRole.ELECTRIC_WEIGHTMENT -> "Electric Wt"
+                                    UserRole.STORE -> "Store"
+                                    UserRole.FINISH_GOOD -> "Finish Good"
+                                    UserRole.OTHER -> "Other Dept"
+                                    else -> "Dashboard"
+                                }
                             )
                         },
                         colors = NavigationBarItemDefaults.colors(selectedIconColor = roleThemeColor)
@@ -373,6 +382,16 @@ fun BallyWeighbridgeApp(
                                 currentUserRole = currentUserRole
                             )
 
+                            UserRole.STORE, UserRole.FINISH_GOOD, UserRole.OTHER -> DepartmentDashboard(
+                                departmentRole = currentUserRole!!,
+                                lorries = allLorries,
+                                searchQuery = searchQuery,
+                                onSearchChange = { viewModel.searchQuery.value = it },
+                                onSubmitDepartmentAction = { gatePass, loadUnloadStatus, remarks, clearForExit ->
+                                    viewModel.submitDepartmentProcessing(gatePass, loadUnloadStatus, remarks, clearForExit)
+                                }
+                            )
+
                             UserRole.SUPER_ADMIN -> SuperAdminDashboard(
                                 stats = stats,
                                 geoFenceState = geoFenceState,
@@ -441,8 +460,8 @@ fun BallyWeighbridgeApp(
                                 qualitiesList = qualitiesList,
                                 mokamsList = mokamsList,
                                 markasList = markasList,
-                                onSaveClick = { lorryNo, chalan, party, desc, qty, unit, gross, tare, items, mokam, marka ->
-                                    viewModel.saveGateEntry(lorryNo, chalan, party, desc, qty, unit, gross, tare, items, mokam, marka)
+                                onSaveClick = { lorryNo, chalan, party, desc, qty, unit, gross, tare, items, mokam, marka, dept ->
+                                    viewModel.saveGateEntry(lorryNo, chalan, party, desc, qty, unit, gross, tare, items, mokam, marka, dept)
                                     currentNavRoute = "dashboard"
                                     roleNavController.popBackStack("dashboard", false)
                                 },
@@ -777,7 +796,7 @@ fun OtaUpdateBannerCard(
             Button(
                 onClick = {
                     val rawUrl = updateDto.downloadUrl.trim()
-                    val targetUrl = if (rawUrl.isNotEmpty()) rawUrl else "https://github.com/YASHODA-LINEN-YARN-LIMITED/heightbridge"
+                    val targetUrl = if (rawUrl.isNotEmpty()) rawUrl else "https://github.com/mis-cell/weight_bridge/raw/main/app-debug.apk"
                     try {
                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl))
                         context.startActivity(intent)

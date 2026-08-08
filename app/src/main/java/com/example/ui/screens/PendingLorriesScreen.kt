@@ -98,7 +98,7 @@ fun PendingLorriesScreen(
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = onSearchChange,
-                        placeholder = { Text("Search Gate Pass, Lorry No, Party, Quality, Mokam...") },
+                        placeholder = { Text("Search Gate Entry No, Lorry No, Party, Quality, Mokam...") },
                         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = IndustrialBlue) },
                         shape = RoundedCornerShape(14.dp),
                         modifier = Modifier

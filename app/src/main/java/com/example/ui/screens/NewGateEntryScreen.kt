@@ -44,7 +44,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.model.MasterDataLists
 import com.example.data.model.QualityItem
+import com.example.ui.components.SearchableDropdown
 import com.example.ui.theme.IndustrialBlue
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -68,7 +70,8 @@ fun NewGateEntryScreen(
         tareWeight: Double?,
         qualityItems: List<QualityItem>,
         mokam: String,
-        marka: String
+        marka: String,
+        department: String
     ) -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -78,7 +81,8 @@ fun NewGateEntryScreen(
 
     var dateText by remember { mutableStateOf(todayDate) }
     var lorryNumber by remember { mutableStateOf("") }
-    var driverName by remember { mutableStateOf("") }
+    var selectedDepartment by remember { mutableStateOf("Jute") }
+    var materialDescription by remember { mutableStateOf("") }
     var inTimeText by remember { mutableStateOf(currentTime) }
     var remarksText by remember { mutableStateOf("") }
 
@@ -290,10 +294,20 @@ fun NewGateEntryScreen(
 
                         Spacer(modifier = Modifier.height(12.dp))
 
+                        SearchableDropdown(
+                            label = "Select Department",
+                            options = MasterDataLists.DEPARTMENTS,
+                            selectedOption = selectedDepartment,
+                            onOptionSelected = { selectedDepartment = it }
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
                         OutlinedTextField(
-                            value = driverName,
-                            onValueChange = { driverName = it },
-                            label = { Text("Driver Name / Phone") },
+                            value = materialDescription,
+                            onValueChange = { materialDescription = it },
+                            label = { Text("Material / Category Description") },
+                            placeholder = { Text("e.g. Raw Jute, Machine Store Parts, Finished Bales") },
                             shape = RoundedCornerShape(12.dp),
                             colors = standardInputColors,
                             modifier = Modifier.fillMaxWidth()
@@ -305,7 +319,7 @@ fun NewGateEntryScreen(
                             value = generatedGatePass,
                             onValueChange = {},
                             readOnly = true,
-                            label = { Text("Gate Pass No. (Auto Generated)") },
+                            label = { Text("Gate Entry No. (Auto Generated)") },
                             shape = RoundedCornerShape(12.dp),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedTextColor = Color(0xFF111827),
@@ -345,22 +359,24 @@ fun NewGateEntryScreen(
                         return@Button
                     }
                     val currentLorryNo = lorryNumber.trim().uppercase()
+                    val desc = if (materialDescription.isNotBlank()) materialDescription.trim() else selectedDepartment
                     onSaveClick(
                         currentLorryNo,
-                        "", // Chalan to be filled by Mill Weighment
-                        "", // Party to be filled by Mill Weighment
-                        "Raw Jute",
+                        "", // Chalan
+                        "", // Party
+                        desc,
                         0.0,
                         "BALES",
                         null,
                         null,
                         emptyList(),
                         "",
-                        ""
+                        "",
+                        selectedDepartment
                     )
                     // Reset all entry form fields to blank after submission
                     lorryNumber = ""
-                    driverName = ""
+                    materialDescription = ""
                     remarksText = ""
                 },
                 enabled = lorryNumber.isNotBlank(),
@@ -371,8 +387,14 @@ fun NewGateEntryScreen(
                     .height(48.dp)
                     .testTag("btn_gate_entry_next_save")
             ) {
+                val buttonLabel = when (selectedDepartment) {
+                    "Store" -> "Issue Gate Entry & Send to Store Dept"
+                    "Finish Good" -> "Issue Gate Entry & Send to Finish Good Dept"
+                    "Other" -> "Issue Gate Entry & Send to Other Dept"
+                    else -> "Issue Gate Entry & Send to Mill Weighbridge"
+                }
                 Text(
-                    text = "Issue Gate Pass & Send to Mill Weighbridge",
+                    text = buttonLabel,
                     fontWeight = FontWeight.Bold
                 )
             }

@@ -1,6 +1,7 @@
 package com.example.ui.viewmodel
 
 import android.app.Application
+import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.model.LorryStatus
@@ -106,6 +107,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             AppUser("Main Gate", UserRole.MAIN_GATE, true, "Active Today"),
             AppUser("Mill Weightment", UserRole.MILL_WEIGHTMENT, true, "Active Today"),
             AppUser("Electric Weightment", UserRole.ELECTRIC_WEIGHTMENT, true, "Active Today"),
+            AppUser("Store", UserRole.STORE, true, "Active Today"),
+            AppUser("Finish Good", UserRole.FINISH_GOOD, true, "Active Today"),
+            AppUser("Other", UserRole.OTHER, true, "Active Today"),
             AppUser("Super Admin", UserRole.SUPER_ADMIN, true, "Active Today")
         )
     )
@@ -119,6 +123,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val currentVersionName = "1.0.0"
     val availableAppUpdate = MutableStateFlow<AppUpdateDto?>(null)
     val isCheckingUpdate = MutableStateFlow(false)
+
+    private val prefs = application.getSharedPreferences("app_settings_prefs", Context.MODE_PRIVATE)
+
+    private fun isUpdateDismissed(versionCode: Int): Boolean {
+        return prefs.getInt("dismissed_update_version_code", 0) >= versionCode
+    }
 
     val allLorriesFlow = repository.allLorries
 
@@ -137,20 +147,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             // Initial OTA update push check
             val initialRemoteUpdate = repository.getAppUpdateInfo()
             if (initialRemoteUpdate != null && initialRemoteUpdate.versionCode > currentVersionCode) {
-                availableAppUpdate.value = initialRemoteUpdate
+                if (!isUpdateDismissed(initialRemoteUpdate.versionCode)) {
+                    availableAppUpdate.value = initialRemoteUpdate
+                }
             } else {
-                // Automatically publish v1.1.0 OTA update to Supabase pointing to GitHub repository
+                // Automatically publish v1.2.0 OTA update to Supabase pointing to GitHub APK release
                 val newUpdate = AppUpdateDto(
                     id = 1,
                     versionCode = 2,
-                    versionName = "1.1.0",
-                    downloadUrl = "https://github.com/YASHODA-LINEN-YARN-LIMITED/heightbridge",
-                    releaseNotes = "🚀 OTA Update v1.1.0: Live Realtime Supabase Multi-Device Data Sync, Instant Weightment Updates & Enhanced Security.",
+                    versionName = "1.2.0",
+                    downloadUrl = "https://github.com/mis-cell/weight_bridge/raw/main/app-debug.apk",
+                    releaseNotes = "🚀 OTA Update v1.2.0: Added Department dropdown (Jute, Store, Finish Good, Other), Department Dashboards, Gate Entry No. format, and Realtime Sync.",
                     isMandatory = false,
                     updatedAt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).format(Date())
                 )
                 repository.publishAppUpdate(newUpdate)
-                availableAppUpdate.value = newUpdate
+                if (!isUpdateDismissed(2)) {
+                    availableAppUpdate.value = newUpdate
+                }
             }
 
             // Continuous Realtime Supabase Sync & OTA Update Check Loop (polls Supabase every 5 seconds)
@@ -159,8 +173,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 try {
                     repository.refreshFromRemote()
                     val remoteUpdate = repository.getAppUpdateInfo()
-                    if (remoteUpdate != null && remoteUpdate.versionCode > currentVersionCode) {
+                    if (remoteUpdate != null && remoteUpdate.versionCode > currentVersionCode && !isUpdateDismissed(remoteUpdate.versionCode)) {
                         availableAppUpdate.value = remoteUpdate
+                    } else if (remoteUpdate != null && isUpdateDismissed(remoteUpdate.versionCode)) {
+                        availableAppUpdate.value = null
                     }
                 } catch (_: Exception) {
                 }
@@ -183,6 +199,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun dismissUpdateBanner() {
+        val update = availableAppUpdate.value
+        if (update != null) {
+            prefs.edit().putInt("dismissed_update_version_code", update.versionCode).apply()
+        }
         availableAppUpdate.value = null
     }
 
@@ -430,7 +450,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun generateGatePassNumber(): String {
         val datePart = SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(Date())
         val randomSuffix = (1000..9999).random()
-        return "GP-$datePart-$randomSuffix"
+        return "GE-$datePart-$randomSuffix"
     }
 
     fun saveGateEntry(
@@ -444,7 +464,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         tareWeight: Double?,
         qualityItems: List<QualityItem>,
         mokam: String,
-        marka: String
+        marka: String,
+        department: String = "Jute"
     ) {
         updateActivityTimestamp()
         viewModelScope.launch {
@@ -454,6 +475,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val netW = if (grossWeight != null && tareWeight != null) grossWeight - tareWeight else null
             val qualityJson = try { qualityItemsAdapter.toJson(qualityItems) } catch (e: Exception) { "[]" }
 
+            val statusName = when (department.trim().lowercase()) {
+                "store" -> LorryStatus.STORE_PENDING.name
+                "finish good" -> LorryStatus.FINISH_GOOD_PENDING.name
+                "other" -> LorryStatus.OTHER_PENDING.name
+                else -> LorryStatus.GATE_ENTRY.name
+            }
+
+            val stageName = when (department.trim().lowercase()) {
+                "store" -> "Store Dept"
+                "finish good" -> "Finish Good Dept"
+                "other" -> "Other Dept"
+                else -> "Mill Weighbridge"
+            }
+
             val lorry = LorryWeighment(
                 gatePass = gatePass,
                 date = todayStr,
@@ -462,7 +497,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 chalan = chalan.trim(),
                 inTime = timeStr,
                 party = party.trim(),
-                description = description,
+                description = if (description.isNotBlank()) description else department,
                 totalQuantity = quantity,
                 unit = unit,
                 grossWeight = grossWeight,
@@ -471,15 +506,51 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 netWeight = netW,
                 mokam = mokam,
                 marka = marka,
-                status = LorryStatus.GATE_ENTRY.name,
-                currentStage = "Main Gate",
+                status = statusName,
+                currentStage = stageName,
+                remarks = "Department: $department",
                 createdAt = System.currentTimeMillis(),
                 qualityItemsJson = qualityJson
             )
 
             repository.saveGateEntry(lorry)
-            logAuditAction("CREATE_GATE_ENTRY", gatePass, "Entry for ${lorry.lorryNumber}, Party: ${lorry.party}, Qty: $quantity $unit")
-            showToast("Gate Entry $gatePass Saved Successfully")
+            logAuditAction("CREATE_GATE_ENTRY", gatePass, "Entry $gatePass for ${lorry.lorryNumber}, Dept: $department")
+            showToast("Gate Entry $gatePass Saved Successfully for $department")
+        }
+    }
+
+    fun submitDepartmentProcessing(
+        gatePass: String,
+        loadUnloadStatus: String,
+        remarksText: String,
+        clearForExit: Boolean
+    ) {
+        updateActivityTimestamp()
+        viewModelScope.launch {
+            val allList = repository.allLorriesList()
+            val lorry = allList.find { it.gatePass == gatePass }
+            if (lorry != null) {
+                val isUnloaded = loadUnloadStatus.equals("Unloaded", ignoreCase = true)
+                val updatedStatus = if (clearForExit) LorryStatus.READY_FOR_GATE_EXIT.name else lorry.status
+                val updatedStage = if (clearForExit) "Gate Out" else lorry.currentStage
+                val combinedRemarks = if (remarksText.isNotBlank()) {
+                    "${lorry.remarks ?: ""}\n[Dept Action: $loadUnloadStatus] $remarksText".trim()
+                } else {
+                    "${lorry.remarks ?: ""}\n[Dept Action: $loadUnloadStatus]".trim()
+                }
+
+                val updatedLorry = lorry.copy(
+                    status = updatedStatus,
+                    currentStage = updatedStage,
+                    unloaded = isUnloaded,
+                    remarks = combinedRemarks,
+                    updatedAt = System.currentTimeMillis()
+                )
+
+                repository.updateLorry(updatedLorry)
+                logAuditAction("DEPARTMENT_ACTION", gatePass, "Department processed $gatePass ($loadUnloadStatus). Clear for exit: $clearForExit")
+                showToast("Vehicle ${lorry.lorryNumber} processed! " + if (clearForExit) "Cleared for Main Gate Out." else "")
+            }
         }
     }
 
