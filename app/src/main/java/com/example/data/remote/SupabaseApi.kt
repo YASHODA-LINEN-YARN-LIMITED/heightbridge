@@ -69,7 +69,8 @@ data class LorryWeighmentDto(
     @Json(name = "created_at") val createdAt: String? = null,
     @Json(name = "updated_at") val updatedAt: String? = null,
     @Json(name = "grade") val grade: String? = null,
-    @Json(name = "grade_details") val gradeDetails: String? = null
+    @Json(name = "grade_details") val gradeDetails: String? = null,
+    @Json(name = "department") val department: String? = null
 ) {
     fun toDomain(): LorryWeighment {
         val createdMillis = parseMillis(createdAt)
@@ -206,7 +207,8 @@ fun LorryWeighment.toDto(): LorryWeighmentDto {
         createdAt = createdIso,
         updatedAt = updatedIso,
         grade = description,
-        gradeDetails = qualityItemsJson
+        gradeDetails = qualityItemsJson,
+        department = if (!remarks.isNullOrEmpty() && remarks.startsWith("Department: ")) remarks.removePrefix("Department: ") else description
     )
 }
 

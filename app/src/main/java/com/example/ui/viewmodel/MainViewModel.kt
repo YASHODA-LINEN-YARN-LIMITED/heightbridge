@@ -464,7 +464,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         qualityItems: List<QualityItem>,
         mokam: String,
         marka: String,
-        department: String = "Jute"
+        department: String = ""
     ) {
         updateActivityTimestamp()
         viewModelScope.launch {
@@ -497,6 +497,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 inTime = timeStr,
                 party = party.trim(),
                 description = if (description.isNotBlank()) description else department,
+                department = department.trim(),
                 totalQuantity = quantity,
                 unit = unit,
                 grossWeight = grossWeight,
@@ -668,16 +669,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         updateActivityTimestamp()
         viewModelScope.launch {
             val allList = repository.allLorriesList()
-            val lorry = allList.find { it.gatePass == gatePass }
+            val lorry = allList.find { it.gatePass == gatePass || (it.lorryNumber.equals(gatePass.trim(), ignoreCase = true) && it.status != LorryStatus.COMPLETED.name) }
             if (lorry != null) {
+                val hasTare = lorry.hasTareRecorded || (lorry.electricTareWeight != null && lorry.electricTareWeight > 0)
+                val targetStatus = if (hasTare) LorryStatus.READY_FOR_GATE_EXIT else LorryStatus.READY_FOR_GATE_EXIT
                 val updated = lorry.copy(
                     unloaded = true,
-                    currentStage = "Unloading Completed",
+                    status = targetStatus.name,
+                    currentStage = if (targetStatus == LorryStatus.READY_FOR_GATE_EXIT) "Ready For Gate Exit" else "Unloading Completed",
                     updatedAt = System.currentTimeMillis()
                 )
                 repository.updateLorry(updated)
-                logAuditAction("MARK_UNLOADED", gatePass, "Jute Unloading marked COMPLETED")
-                showToast("Unloading marked completed for $gatePass")
+                logAuditAction("MARK_UNLOADED", lorry.gatePass, "Jute Unloading marked COMPLETED")
+                showToast("Unloading marked completed & Cleared for Exit for ${lorry.lorryNumber}")
             }
         }
     }
@@ -691,20 +695,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 (gatePass.isNotBlank() && it.lorryNumber.equals(gatePass.trim(), ignoreCase = true) && it.status != LorryStatus.COMPLETED.name) 
             }
             if (lorry != null) {
-                val currentStageIndex = LorryStatus.fromString(lorry.status).stageIndex
-                val targetStatus = LorryStatus.ELECTRIC_TARE_DONE
-                val nextStatus = if (currentStageIndex < targetStatus.stageIndex) targetStatus.name else lorry.status
-                val nextStage = if (currentStageIndex < targetStatus.stageIndex) targetStatus.stageName else lorry.currentStage
+                val targetStatus = LorryStatus.READY_FOR_GATE_EXIT
 
                 val updated = lorry.copy(
                     electricTareWeight = electricTareWeight,
-                    status = nextStatus,
-                    currentStage = nextStage,
+                    status = targetStatus.name,
+                    currentStage = targetStatus.stageName,
                     updatedAt = System.currentTimeMillis()
                 )
                 repository.updateLorry(updated)
                 logAuditAction("ELECTRIC_TARE_WEIGHT", lorry.gatePass, "Electric Tare: ${electricTareWeight.toInt()} kg")
-                showToast("Electric Tare Weight recorded for ${lorry.gatePass}")
+                showToast("Electric Tare Weight recorded & Cleared for Gate Exit for ${lorry.lorryNumber}")
             } else {
                 showToast("Vehicle record not found for Electric Tare Weight")
             }
@@ -720,25 +721,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 (gatePass.isNotBlank() && it.lorryNumber.equals(gatePass.trim(), ignoreCase = true) && it.status != LorryStatus.COMPLETED.name) 
             }
             if (lorry != null) {
-                val currentStageIndex = LorryStatus.fromString(lorry.status).stageIndex
+                val hasTare = (electricTareWeight != null && electricTareWeight > 0) || lorry.hasTareRecorded
                 val targetStatus = when {
-                    electricTareWeight != null && electricTareWeight > 0 -> LorryStatus.ELECTRIC_TARE_DONE
+                    hasTare || lorry.unloaded -> LorryStatus.READY_FOR_GATE_EXIT
                     electricGrossWeight != null && electricGrossWeight > 0 -> LorryStatus.ELECTRIC_GROSS_DONE
                     else -> LorryStatus.fromString(lorry.status)
                 }
-                val nextStatus = if (currentStageIndex < targetStatus.stageIndex) targetStatus.name else lorry.status
-                val nextStage = if (currentStageIndex < targetStatus.stageIndex) targetStatus.stageName else lorry.currentStage
 
                 val updated = lorry.copy(
                     electricGrossWeight = electricGrossWeight ?: lorry.electricGrossWeight,
                     electricTareWeight = electricTareWeight ?: lorry.electricTareWeight,
-                    status = nextStatus,
-                    currentStage = nextStage,
+                    status = targetStatus.name,
+                    currentStage = targetStatus.stageName,
                     updatedAt = System.currentTimeMillis()
                 )
                 repository.updateLorry(updated)
                 logAuditAction("ELECTRIC_WEIGHTS", lorry.gatePass, "Elec Gross: ${electricGrossWeight?.toInt() ?: "N/A"} kg, Elec Tare: ${electricTareWeight?.toInt() ?: "N/A"} kg")
-                showToast("Electric Weighment saved for ${lorry.gatePass}")
+                showToast("Electric Weighment saved for ${lorry.lorryNumber}")
             } else {
                 showToast("Vehicle record not found for Electric Weightment")
             }
@@ -778,8 +777,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         updateActivityTimestamp()
         viewModelScope.launch {
             val allList = repository.allLorriesList()
-            val lorry = allList.find { it.gatePass == gatePass }
+            val lorry = allList.find { it.gatePass == gatePass || (it.lorryNumber.equals(gatePass.trim(), ignoreCase = true)) }
             if (lorry != null) {
+                if (lorry.status == LorryStatus.COMPLETED.name || !lorry.outTime.isNullOrBlank()) {
+                    showToast("Lorry is already marked OUT.")
+                    return@launch
+                }
                 val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
                 val timeStr = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date())
 
@@ -793,7 +796,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
                 repository.updateLorry(updated)
                 logAuditAction("GATE_OUT", gatePass, "Lorry Out marked. Remarks: ${updated.remarks}")
-                showToast("Lorry $gatePass marked OUT successfully!")
+                showToast("Lorry ${lorry.lorryNumber} marked OUT successfully!")
+            } else {
+                showToast("Lorry is already marked OUT.")
             }
         }
     }

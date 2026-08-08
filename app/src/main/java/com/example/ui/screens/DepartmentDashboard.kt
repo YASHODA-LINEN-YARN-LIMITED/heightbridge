@@ -80,14 +80,10 @@ fun DepartmentDashboard(
         else -> IndustrialBlue
     }
 
-    // Filter lorries relevant to this department (or pending action)
+    // Filter lorries strictly relevant to this department
     val deptLorries = remember(lorries, deptName, searchQuery) {
         lorries.filter { lorry ->
-            val matchesDept = lorry.description.equals(deptName, ignoreCase = true) ||
-                    lorry.currentStage.contains(deptName, ignoreCase = true) ||
-                    lorry.status.contains(deptName.replace(" ", "_"), ignoreCase = true) ||
-                    lorry.status == LorryStatus.GATE_ENTRY.name ||
-                    lorry.status == LorryStatus.WAITING_FOR_UNLOADING.name
+            val matchesDept = lorry.effectiveDepartment.equals(deptName, ignoreCase = true)
 
             val matchesSearch = searchQuery.isBlank() ||
                     lorry.lorryNumber.contains(searchQuery, ignoreCase = true) ||
@@ -95,7 +91,7 @@ fun DepartmentDashboard(
                     lorry.party.contains(searchQuery, ignoreCase = true) ||
                     lorry.chalan.contains(searchQuery, ignoreCase = true)
 
-            matchesDept && matchesSearch && lorry.status != LorryStatus.COMPLETED.name
+            matchesDept && matchesSearch && lorry.status != LorryStatus.COMPLETED.name && lorry.outTime.isNullOrEmpty()
         }
     }
 

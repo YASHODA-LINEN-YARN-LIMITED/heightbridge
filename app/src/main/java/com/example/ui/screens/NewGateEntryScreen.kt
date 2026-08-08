@@ -20,6 +20,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -27,6 +28,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -48,6 +50,7 @@ import com.example.data.model.MasterDataLists
 import com.example.data.model.QualityItem
 import com.example.ui.components.SearchableDropdown
 import com.example.ui.theme.IndustrialBlue
+import com.example.ui.theme.StatusGreen
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -81,10 +84,11 @@ fun NewGateEntryScreen(
 
     var dateText by remember { mutableStateOf(todayDate) }
     var lorryNumber by remember { mutableStateOf("") }
-    var selectedDepartment by remember { mutableStateOf("Jute") }
+    var selectedDepartment by remember { mutableStateOf("") }
     var materialDescription by remember { mutableStateOf("") }
     var inTimeText by remember { mutableStateOf(currentTime) }
     var remarksText by remember { mutableStateOf("") }
+    var showConfirmDialog by remember { mutableStateOf(false) }
 
     val standardInputColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = Color(0xFF111827),
@@ -355,31 +359,11 @@ fun NewGateEntryScreen(
         ) {
             Button(
                 onClick = {
-                    if (lorryNumber.isBlank()) {
-                        return@Button
+                    if (lorryNumber.isNotBlank() && selectedDepartment.isNotBlank()) {
+                        showConfirmDialog = true
                     }
-                    val currentLorryNo = lorryNumber.trim().uppercase()
-                    val desc = if (materialDescription.isNotBlank()) materialDescription.trim() else selectedDepartment
-                    onSaveClick(
-                        currentLorryNo,
-                        "", // Chalan
-                        "", // Party
-                        desc,
-                        0.0,
-                        "BALES",
-                        null,
-                        null,
-                        emptyList(),
-                        "",
-                        "",
-                        selectedDepartment
-                    )
-                    // Reset all entry form fields to blank after submission
-                    lorryNumber = ""
-                    materialDescription = ""
-                    remarksText = ""
                 },
-                enabled = lorryNumber.isNotBlank(),
+                enabled = lorryNumber.isNotBlank() && selectedDepartment.isNotBlank(),
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = IndustrialBlue),
                 modifier = Modifier
@@ -388,16 +372,114 @@ fun NewGateEntryScreen(
                     .testTag("btn_gate_entry_next_save")
             ) {
                 val buttonLabel = when (selectedDepartment) {
-                    "Store" -> "Issue Gate Entry & Send to Store Dept"
-                    "Finish Good" -> "Issue Gate Entry & Send to Finish Good Dept"
-                    "Other" -> "Issue Gate Entry & Send to Other Dept"
-                    else -> "Issue Gate Entry & Send to Mill Weighbridge"
+                    "Jute" -> "Issue Gate Entry & Send to Mill Weighbridge"
+                    "Store" -> "Issue Gate Entry & Send to Store"
+                    "Finish Good" -> "Issue Gate Entry & Send to Finish Good"
+                    "Other" -> "Issue Gate Entry & Send to Other Department"
+                    else -> "Select Department"
                 }
                 Text(
                     text = buttonLabel,
                     fontWeight = FontWeight.Bold
                 )
             }
+        }
+
+        if (showConfirmDialog) {
+            AlertDialog(
+                onDismissRequest = { showConfirmDialog = false },
+                title = {
+                    Text(
+                        text = "Confirm Gate Entry Routing",
+                        fontWeight = FontWeight.Bold,
+                        color = IndustrialBlue
+                    )
+                },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "Please verify the vehicle routing details before issuing the Gate Entry:",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFF3F4F6)),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = "Gate Entry No: $generatedGatePass",
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                                Text(
+                                    text = "Vehicle No: ${lorryNumber.trim().uppercase()}",
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = IndustrialBlue
+                                )
+                                Text(
+                                    text = "Department: $selectedDepartment",
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = StatusGreen
+                                )
+                                val destinationWorkflow = when (selectedDepartment) {
+                                    "Jute" -> "Mill Weighbridge -> Electric Weighbridge -> Jute Yard"
+                                    "Store" -> "Store Department Queue"
+                                    "Finish Good" -> "Finish Good Department Queue"
+                                    "Other" -> "Other Department Queue"
+                                    else -> selectedDepartment
+                                }
+                                Text(
+                                    text = "Routing to: $destinationWorkflow",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color(0xFF4B5563)
+                                )
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showConfirmDialog = false
+                            val currentLorryNo = lorryNumber.trim().uppercase()
+                            val desc = if (materialDescription.isNotBlank()) materialDescription.trim() else selectedDepartment
+                            onSaveClick(
+                                currentLorryNo,
+                                "", // Chalan
+                                "", // Party
+                                desc,
+                                0.0,
+                                "BALES",
+                                null,
+                                null,
+                                emptyList(),
+                                "",
+                                "",
+                                selectedDepartment
+                            )
+                            // Reset all entry form fields to blank after submission
+                            lorryNumber = ""
+                            selectedDepartment = ""
+                            materialDescription = ""
+                            remarksText = ""
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = IndustrialBlue)
+                    ) {
+                        Text("Confirm & Issue Gate Entry")
+                    }
+                },
+                dismissButton = {
+                    OutlinedButton(onClick = { showConfirmDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
     }
 }

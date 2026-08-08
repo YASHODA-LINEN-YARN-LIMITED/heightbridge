@@ -336,7 +336,7 @@ fun BallyWeighbridgeApp(
                         when (currentUserRole) {
                             UserRole.MAIN_GATE -> MainGateDashboard(
                                 stats = stats,
-                                lorries = filteredLorries,
+                                lorries = filteredLorries.filter { it.status != com.example.data.model.LorryStatus.COMPLETED.name && it.outTime.isNullOrEmpty() },
                                 searchQuery = searchQuery,
                                 onSearchChange = { viewModel.searchQuery.value = it },
                                 onNewEntryClick = {
@@ -349,7 +349,11 @@ fun BallyWeighbridgeApp(
                                 },
                                 onLorryClick = { lorry ->
                                     val statusEnum = com.example.data.model.LorryStatus.fromString(lorry.status)
-                                    if (statusEnum == com.example.data.model.LorryStatus.READY_FOR_GATE_EXIT || statusEnum == com.example.data.model.LorryStatus.COMPLETED) {
+                                    val isAllowed = statusEnum == com.example.data.model.LorryStatus.READY_FOR_GATE_EXIT ||
+                                            statusEnum == com.example.data.model.LorryStatus.COMPLETED ||
+                                            statusEnum == com.example.data.model.LorryStatus.ELECTRIC_TARE_DONE ||
+                                            lorry.hasTareRecorded || lorry.unloaded || !lorry.outTime.isNullOrEmpty()
+                                    if (isAllowed) {
                                         activeGateOutLorry = lorry
                                         roleNavController.navigate("gate_out")
                                     } else {
@@ -361,7 +365,7 @@ fun BallyWeighbridgeApp(
                             )
 
                             UserRole.MILL_WEIGHTMENT -> MillWeightmentDashboard(
-                                lorries = allLorries.filter { it.status != com.example.data.model.LorryStatus.COMPLETED.name },
+                                lorries = allLorries.filter { it.effectiveDepartment == "Jute" && it.status != com.example.data.model.LorryStatus.COMPLETED.name && it.outTime.isNullOrEmpty() },
                                 searchQuery = searchQuery,
                                 onSearchChange = { viewModel.searchQuery.value = it },
                                 onSubmitGrossWeight = { pass, w, party, chalan, mokam, marka, desc, tareWt, totalQty, unit, qualityItems, lorryNum, chalanGross ->
@@ -372,7 +376,7 @@ fun BallyWeighbridgeApp(
                             )
 
                             UserRole.ELECTRIC_WEIGHTMENT -> ElectricWeightmentDashboard(
-                                lorries = allLorries.filter { it.status != com.example.data.model.LorryStatus.COMPLETED.name },
+                                lorries = allLorries.filter { it.effectiveDepartment == "Jute" && it.status != com.example.data.model.LorryStatus.COMPLETED.name && it.outTime.isNullOrEmpty() },
                                 searchQuery = searchQuery,
                                 onSearchChange = { viewModel.searchQuery.value = it },
                                 onSubmitElectricGross = { pass, w -> viewModel.submitElectricGrossWeight(pass, w) },
@@ -432,14 +436,18 @@ fun BallyWeighbridgeApp(
 
                             else -> MainGateDashboard(
                                 stats = stats,
-                                lorries = filteredLorries,
+                                lorries = filteredLorries.filter { it.status != com.example.data.model.LorryStatus.COMPLETED.name && it.outTime.isNullOrEmpty() },
                                 searchQuery = searchQuery,
                                 onSearchChange = { viewModel.searchQuery.value = it },
                                 onNewEntryClick = { roleNavController.navigate("new_entry") },
                                 onViewAllPendingClick = { roleNavController.navigate("pending") },
                                 onLorryClick = { lorry ->
                                     val statusEnum = com.example.data.model.LorryStatus.fromString(lorry.status)
-                                    if (statusEnum == com.example.data.model.LorryStatus.READY_FOR_GATE_EXIT || statusEnum == com.example.data.model.LorryStatus.COMPLETED) {
+                                    val isAllowed = statusEnum == com.example.data.model.LorryStatus.READY_FOR_GATE_EXIT ||
+                                            statusEnum == com.example.data.model.LorryStatus.COMPLETED ||
+                                            statusEnum == com.example.data.model.LorryStatus.ELECTRIC_TARE_DONE ||
+                                            lorry.hasTareRecorded || lorry.unloaded || !lorry.outTime.isNullOrEmpty()
+                                    if (isAllowed) {
                                         activeGateOutLorry = lorry
                                         roleNavController.navigate("gate_out")
                                     } else {
@@ -484,7 +492,7 @@ fun BallyWeighbridgeApp(
                     composable("mill_weight") {
                         if (currentUserRole == UserRole.MILL_WEIGHTMENT || currentUserRole == UserRole.SUPER_ADMIN) {
                             MillWeightmentDashboard(
-                                lorries = allLorries.filter { it.status != com.example.data.model.LorryStatus.COMPLETED.name },
+                                lorries = allLorries.filter { it.effectiveDepartment == "Jute" && it.status != com.example.data.model.LorryStatus.COMPLETED.name && it.outTime.isNullOrEmpty() },
                                 searchQuery = searchQuery,
                                 onSearchChange = { viewModel.searchQuery.value = it },
                                 onSubmitGrossWeight = { pass, w, party, chalan, mokam, marka, desc, tareWt, totalQty, unit, qualityItems, lorryNum, chalanGross ->
@@ -508,7 +516,7 @@ fun BallyWeighbridgeApp(
                     composable("electric_weight") {
                         if (currentUserRole == UserRole.ELECTRIC_WEIGHTMENT || currentUserRole == UserRole.SUPER_ADMIN) {
                             ElectricWeightmentDashboard(
-                                lorries = allLorries.filter { it.status != com.example.data.model.LorryStatus.COMPLETED.name },
+                                lorries = allLorries.filter { it.effectiveDepartment == "Jute" && it.status != com.example.data.model.LorryStatus.COMPLETED.name && it.outTime.isNullOrEmpty() },
                                 searchQuery = searchQuery,
                                 onSearchChange = { viewModel.searchQuery.value = it },
                                 onSubmitElectricGross = { pass, w -> viewModel.submitElectricGrossWeight(pass, w) },
@@ -549,7 +557,11 @@ fun BallyWeighbridgeApp(
                                     }
                                     UserRole.MAIN_GATE -> {
                                         val statusEnum = com.example.data.model.LorryStatus.fromString(lorry.status)
-                                        if (statusEnum == com.example.data.model.LorryStatus.READY_FOR_GATE_EXIT || statusEnum == com.example.data.model.LorryStatus.COMPLETED) {
+                                        val isAllowed = statusEnum == com.example.data.model.LorryStatus.READY_FOR_GATE_EXIT ||
+                                                statusEnum == com.example.data.model.LorryStatus.COMPLETED ||
+                                                statusEnum == com.example.data.model.LorryStatus.ELECTRIC_TARE_DONE ||
+                                                lorry.hasTareRecorded || lorry.unloaded || !lorry.outTime.isNullOrEmpty()
+                                        if (isAllowed) {
                                             activeGateOutLorry = lorry
                                             roleNavController.navigate("gate_out")
                                         } else {
@@ -558,7 +570,11 @@ fun BallyWeighbridgeApp(
                                     }
                                     UserRole.SUPER_ADMIN -> {
                                         val statusEnum = com.example.data.model.LorryStatus.fromString(lorry.status)
-                                        if (statusEnum == com.example.data.model.LorryStatus.READY_FOR_GATE_EXIT || statusEnum == com.example.data.model.LorryStatus.COMPLETED) {
+                                        val isAllowed = statusEnum == com.example.data.model.LorryStatus.READY_FOR_GATE_EXIT ||
+                                                statusEnum == com.example.data.model.LorryStatus.COMPLETED ||
+                                                statusEnum == com.example.data.model.LorryStatus.ELECTRIC_TARE_DONE ||
+                                                lorry.hasTareRecorded || lorry.unloaded || !lorry.outTime.isNullOrEmpty()
+                                        if (isAllowed) {
                                             activeGateOutLorry = lorry
                                             roleNavController.navigate("gate_out")
                                         } else if (statusEnum == com.example.data.model.LorryStatus.ELECTRIC_GROSS_DONE || statusEnum == com.example.data.model.LorryStatus.WAITING_FOR_UNLOADING) {
@@ -579,9 +595,10 @@ fun BallyWeighbridgeApp(
 
                     composable("gate_out") {
                         if (currentUserRole == UserRole.MAIN_GATE || currentUserRole == UserRole.SUPER_ADMIN) {
-                            activeGateOutLorry?.let { lorry ->
+                            activeGateOutLorry?.let { selectedLorry ->
+                                val liveLorry = allLorries.find { it.gatePass == selectedLorry.gatePass || (it.lorryNumber.isNotBlank() && it.lorryNumber.equals(selectedLorry.lorryNumber, ignoreCase = true)) } ?: selectedLorry
                                 GateOutScreen(
-                                    lorry = lorry,
+                                    lorry = liveLorry,
                                     onMarkOutClick = { pass, remarks ->
                                         viewModel.markGateOut(pass, remarks)
                                         roleNavController.popBackStack()

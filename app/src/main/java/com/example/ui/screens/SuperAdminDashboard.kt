@@ -819,15 +819,16 @@ fun ReportsModuleView(
 ) {
     val context = LocalContext.current
     var searchQuery by remember { mutableStateOf("") }
-    var selectedPeriod by remember { mutableStateOf("All Time") }
+    var selectedDepartmentFilter by remember { mutableStateOf("All") }
 
-    val filteredList = remember(allLorries, searchQuery, selectedPeriod) {
+    val filteredList = remember(allLorries, searchQuery, selectedDepartmentFilter) {
         allLorries.filter { lorry ->
+            val matchesDept = if (selectedDepartmentFilter == "All") true else lorry.effectiveDepartment.equals(selectedDepartmentFilter, ignoreCase = true)
             val matchesQuery = searchQuery.isEmpty() ||
                     lorry.lorryNumber.contains(searchQuery, ignoreCase = true) ||
                     lorry.gatePass.contains(searchQuery, ignoreCase = true) ||
                     lorry.party.contains(searchQuery, ignoreCase = true)
-            matchesQuery
+            matchesDept && matchesQuery
         }
     }
 
@@ -846,6 +847,20 @@ fun ReportsModuleView(
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier.fillMaxWidth()
         )
+
+        // Department Filter Chips Row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            listOf("All", "Jute", "Store", "Finish Good", "Other").forEach { dept ->
+                androidx.compose.material3.FilterChip(
+                    selected = selectedDepartmentFilter == dept,
+                    onClick = { selectedDepartmentFilter = dept },
+                    label = { Text(dept, style = MaterialTheme.typography.labelSmall) }
+                )
+            }
+        }
 
         // Stat Chips Row
         Row(

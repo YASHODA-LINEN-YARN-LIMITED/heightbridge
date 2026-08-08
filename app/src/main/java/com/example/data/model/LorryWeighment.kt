@@ -41,6 +41,9 @@ data class LorryWeighment(
     @Json(name = "description")
     val description: String = "Jute",
 
+    @Json(name = "department")
+    val department: String = "",
+
     @Json(name = "total_quantity")
     val totalQuantity: Double = 0.0,
 
@@ -105,6 +108,37 @@ data class LorryWeighment(
     @Json(name = "quality_items_json")
     val qualityItemsJson: String = "[]"
 ) {
+    val effectiveDepartment: String
+        get() {
+            if (department.isNotBlank()) {
+                val d = department.trim().lowercase()
+                return when {
+                    d.contains("store") -> "Store"
+                    d.contains("finish") -> "Finish Good"
+                    d.contains("other") -> "Other"
+                    else -> "Jute"
+                }
+            }
+            if (!remarks.isNullOrBlank() && remarks.contains("Department:", ignoreCase = true)) {
+                val deptVal = remarks.substringAfter("Department:").substringBefore("\n").substringBefore("|").trim().lowercase()
+                return when {
+                    deptVal.contains("store") -> "Store"
+                    deptVal.contains("finish") -> "Finish Good"
+                    deptVal.contains("other") -> "Other"
+                    else -> "Jute"
+                }
+            }
+            val stage = currentStage.lowercase()
+            val desc = description.lowercase()
+            val stat = status.lowercase()
+            return when {
+                stat.contains("store") || stage.contains("store") || desc.contains("store") -> "Store"
+                stat.contains("finish") || stage.contains("finish") || desc.contains("finish") -> "Finish Good"
+                stat.contains("other") || stage.contains("other") || desc.contains("other") -> "Other"
+                else -> "Jute"
+            }
+        }
+
     val millNetWeight: Double?
         get() = if (millGrossWeight != null && millTareWeight != null) millGrossWeight - millTareWeight else null
 

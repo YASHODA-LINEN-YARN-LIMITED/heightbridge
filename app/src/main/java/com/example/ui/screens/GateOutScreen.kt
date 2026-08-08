@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Schedule
@@ -66,8 +68,9 @@ fun GateOutScreen(
     var outTimeText by remember { mutableStateOf(currentTime) }
     var remarksInput by remember { mutableStateOf("Lorry Out - Weight Clearance Passed") }
 
+    val isAlreadyOut = lorry.status == LorryStatus.COMPLETED.name || !lorry.outTime.isNullOrBlank()
     val isDeptVehicle = lorry.remarks?.contains("Department:", ignoreCase = true) == true && !lorry.remarks.contains("Jute", ignoreCase = true)
-    val isClearedForOut = lorry.status == LorryStatus.READY_FOR_GATE_EXIT.name || lorry.unloaded || lorry.hasTareRecorded
+    val isClearedForOut = isAlreadyOut || lorry.status == LorryStatus.READY_FOR_GATE_EXIT.name || lorry.unloaded || lorry.hasTareRecorded || lorry.status == LorryStatus.ELECTRIC_TARE_DONE.name
     val displayTare = lorry.tareWeight ?: lorry.millTareWeight ?: lorry.electricTareWeight
     val displayGross = lorry.grossWeight ?: lorry.millGrossWeight ?: lorry.electricGrossWeight
     val displayNet = lorry.lowestNetWeight
@@ -157,7 +160,40 @@ fun GateOutScreen(
 
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        if (!isClearedForOut) {
+                        if (isAlreadyOut) {
+                            Card(
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF0FDF4)),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF86EFAC)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = null,
+                                            tint = StatusGreen,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "✓ Lorry Already Marked OUT",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = StatusGreen
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(text = "Out Date: ${lorry.outDate ?: outDateText}", style = MaterialTheme.typography.bodyMedium, color = Color(0xFF111827))
+                                    Text(text = "Out Time: ${lorry.outTime ?: outTimeText}", style = MaterialTheme.typography.bodyMedium, color = Color(0xFF111827))
+                                    Text(text = "Status: Completed (Lorry Out)", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = StatusGreen)
+                                    if (!lorry.remarks.isNullOrBlank()) {
+                                        Text(text = "Exit Remarks: ${lorry.remarks}", style = MaterialTheme.typography.bodySmall, color = Color(0xFF4B5563))
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+                        } else if (!isClearedForOut) {
                             Card(
                                 shape = RoundedCornerShape(12.dp),
                                 colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF2F2)),
@@ -299,52 +335,55 @@ fun GateOutScreen(
 
                         Spacer(modifier = Modifier.height(20.dp))
 
-                        OutlinedTextField(
-                            value = outDateText,
-                            onValueChange = { outDateText = it },
-                            label = { Text("Out Date") },
-                            trailingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null) },
-                            shape = RoundedCornerShape(12.dp),
-                            colors = standardInputColors,
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                        if (!isAlreadyOut) {
+                            OutlinedTextField(
+                                value = outDateText,
+                                onValueChange = { outDateText = it },
+                                label = { Text("Out Date") },
+                                trailingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null) },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = standardInputColors,
+                                modifier = Modifier.fillMaxWidth()
+                            )
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(12.dp))
 
-                        OutlinedTextField(
-                            value = outTimeText,
-                            onValueChange = { outTimeText = it },
-                            label = { Text("Out Time") },
-                            trailingIcon = { Icon(Icons.Default.Schedule, contentDescription = null) },
-                            shape = RoundedCornerShape(12.dp),
-                            colors = standardInputColors,
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                            OutlinedTextField(
+                                value = outTimeText,
+                                onValueChange = { outTimeText = it },
+                                label = { Text("Out Time") },
+                                trailingIcon = { Icon(Icons.Default.Schedule, contentDescription = null) },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = standardInputColors,
+                                modifier = Modifier.fillMaxWidth()
+                            )
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(12.dp))
 
-                        OutlinedTextField(
-                            value = remarksInput,
-                            onValueChange = { remarksInput = it },
-                            label = { Text("Gate Exit Remarks") },
-                            shape = RoundedCornerShape(12.dp),
-                            colors = standardInputColors,
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                            OutlinedTextField(
+                                value = remarksInput,
+                                onValueChange = { remarksInput = it },
+                                label = { Text("Gate Exit Remarks") },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = standardInputColors,
+                                modifier = Modifier.fillMaxWidth()
+                            )
 
-                        Spacer(modifier = Modifier.height(24.dp))
+                            Spacer(modifier = Modifier.height(24.dp))
+                        }
 
                         Button(
                             onClick = {
-                                if (isClearedForOut) {
+                                if (!isAlreadyOut && isClearedForOut) {
                                     onMarkOutClick(lorry.gatePass, remarksInput)
                                 }
                             },
-                            enabled = isClearedForOut,
+                            enabled = !isAlreadyOut && isClearedForOut,
                             shape = RoundedCornerShape(14.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = IndustrialBlue,
-                                disabledContainerColor = Color(0xFFD1D5DB)
+                                disabledContainerColor = if (isAlreadyOut) StatusGreen else Color(0xFFD1D5DB),
+                                disabledContentColor = Color.White
                             ),
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -352,7 +391,11 @@ fun GateOutScreen(
                                 .testTag("btn_mark_lorry_out")
                         ) {
                             Text(
-                                text = if (isClearedForOut) "Clear & Mark Lorry OUT" else "Gate Out Locked (Missing Clearance)",
+                                text = when {
+                                    isAlreadyOut -> "✓ Lorry Already Marked OUT"
+                                    isClearedForOut -> "Clear & Mark Lorry OUT"
+                                    else -> "Gate Out Locked (Missing Clearance)"
+                                },
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
