@@ -394,7 +394,15 @@ fun BallyWeighbridgeApp(
 
                             UserRole.STORE, UserRole.FINISH_GOOD, UserRole.OTHER -> DepartmentDashboard(
                                 departmentRole = currentUserRole!!,
-                                lorries = allLorries,
+                                lorries = allLorries.filter { lorry ->
+                                    val targetDept = when (currentUserRole) {
+                                        UserRole.STORE -> "Store"
+                                        UserRole.FINISH_GOOD -> "Finish Good"
+                                        UserRole.OTHER -> "Other"
+                                        else -> ""
+                                    }
+                                    lorry.effectiveDepartment.equals(targetDept, ignoreCase = true)
+                                },
                                 searchQuery = searchQuery,
                                 onSearchChange = { viewModel.searchQuery.value = it },
                                 onSubmitDepartmentAction = { gatePass, loadUnloadStatus, remarks, clearForExit ->
