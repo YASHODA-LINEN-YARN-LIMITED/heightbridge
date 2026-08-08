@@ -803,6 +803,7 @@ fun OtaUpdateBannerCard(
                     } catch (e: Exception) {
                         Toast.makeText(context, "Could not open link: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
                     }
+                    onDismiss()
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
                 shape = RoundedCornerShape(8.dp),

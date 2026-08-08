@@ -119,8 +119,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val selectedLorry = MutableStateFlow<LorryWeighment?>(null)
 
     // App Versioning & OTA Engine
-    val currentVersionCode = 1
-    val currentVersionName = "1.0.0"
+    val currentVersionCode = 2
+    val currentVersionName = "1.2.0"
     val availableAppUpdate = MutableStateFlow<AppUpdateDto?>(null)
     val isCheckingUpdate = MutableStateFlow(false)
 
