@@ -119,7 +119,16 @@ fun ElectricWeightmentDashboard(
     )
 
     val pendingLorries = remember(lorries) {
-        lorries.filter { it.status != LorryStatus.COMPLETED.name }
+        lorries.filter { it.effectiveDepartment == "Jute" && it.status != LorryStatus.COMPLETED.name && it.outTime.isNullOrEmpty() }
+    }
+
+    val filteredQueue = remember(pendingLorries, searchQuery) {
+        pendingLorries.filter { lorry ->
+            searchQuery.isBlank() ||
+                    lorry.lorryNumber.contains(searchQuery, ignoreCase = true) ||
+                    lorry.gatePass.contains(searchQuery, ignoreCase = true) ||
+                    lorry.party.contains(searchQuery, ignoreCase = true)
+        }
     }
 
     // Gross weight condition: Check if gross weight exists or is currently entered
@@ -215,7 +224,7 @@ fun ElectricWeightmentDashboard(
                                     val matched = pendingLorries.find {
                                         "${it.lorryNumber} (${it.gatePass})" == selected || it.lorryNumber.equals(selected, ignoreCase = true) || selected.contains(it.gatePass)
                                     } ?: lorries.find {
-                                        "${it.lorryNumber} (${it.gatePass})" == selected || it.lorryNumber.equals(selected, ignoreCase = true) || selected.contains(it.gatePass)
+                                        it.effectiveDepartment == "Jute" && ("${it.lorryNumber} (${it.gatePass})" == selected || it.lorryNumber.equals(selected, ignoreCase = true) || selected.contains(it.gatePass))
                                     }
 
                                     if (matched != null) {
@@ -436,7 +445,7 @@ fun ElectricWeightmentDashboard(
                     )
                 }
 
-                if (lorries.isEmpty()) {
+                if (filteredQueue.isEmpty()) {
                     item {
                         Card(
                             shape = RoundedCornerShape(10.dp),
@@ -453,7 +462,7 @@ fun ElectricWeightmentDashboard(
                     }
                 }
 
-                items(lorries) { lorry ->
+                items(filteredQueue) { lorry ->
                     val statusEnum = LorryStatus.fromString(lorry.status)
                     Card(
                         shape = RoundedCornerShape(12.dp),

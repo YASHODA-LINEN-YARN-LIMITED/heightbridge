@@ -95,8 +95,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Clear FLAG_SECURE to allow screenshots and screen recording
-        window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        // Set FLAG_SECURE to disable/block screenshots and screen recording
+        window.setFlags(
+            WindowManager.LayoutParams.FLAG_SECURE,
+            WindowManager.LayoutParams.FLAG_SECURE
+        )
 
         enableEdgeToEdge()
 
@@ -109,8 +112,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Clear FLAG_SECURE on resume
-        window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        // Enforce FLAG_SECURE on resume to keep screenshots and screen recording disabled
+        window.setFlags(
+            WindowManager.LayoutParams.FLAG_SECURE,
+            WindowManager.LayoutParams.FLAG_SECURE
+        )
     }
 }
 

@@ -418,8 +418,11 @@ fun MillWeightmentDashboard(
                                 Spacer(modifier = Modifier.height(10.dp))
 
                                 // Vehicle Dropdown Select
-                                val vehicleOptions = remember(lorries) {
-                                    lorries.map { "${it.lorryNumber} (${it.gatePass})" }
+                                val juteLorries = remember(lorries) {
+                                    lorries.filter { it.effectiveDepartment == "Jute" && it.status != LorryStatus.COMPLETED.name && it.outTime.isNullOrEmpty() }
+                                }
+                                val vehicleOptions = remember(juteLorries) {
+                                    juteLorries.map { "${it.lorryNumber} (${it.gatePass})" }
                                 }
 
                                 SearchableDropdown(
@@ -427,7 +430,7 @@ fun MillWeightmentDashboard(
                                     options = vehicleOptions,
                                     selectedOption = if (vehicleNoInput.isNotBlank() && gatePassInput.isNotBlank()) "$vehicleNoInput ($gatePassInput)" else vehicleNoInput,
                                     onOptionSelected = { selected ->
-                                        val matchedLorry = lorries.find {
+                                        val matchedLorry = juteLorries.find {
                                             "${it.lorryNumber} (${it.gatePass})" == selected || it.lorryNumber.equals(selected, ignoreCase = true)
                                         }
                                         if (matchedLorry != null) {
