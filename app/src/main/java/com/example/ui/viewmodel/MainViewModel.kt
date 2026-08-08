@@ -151,8 +151,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     availableAppUpdate.value = initialRemoteUpdate
                 }
             } else {
-                // Automatically publish v1.2.0 OTA update to Supabase pointing to GitHub APK release
-                val newUpdate = AppUpdateDto(
+                // Ensure latest server record exists (versionCode = 2, v1.2.0) for older app instances
+                val latestServerMeta = AppUpdateDto(
                     id = 1,
                     versionCode = 2,
                     versionName = "1.2.0",
@@ -161,10 +161,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     isMandatory = false,
                     updatedAt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).format(Date())
                 )
-                repository.publishAppUpdate(newUpdate)
-                if (!isUpdateDismissed(2)) {
-                    availableAppUpdate.value = newUpdate
-                }
+                repository.publishAppUpdate(latestServerMeta)
+                // Installed version is equal to latest version -> NO update banner!
+                availableAppUpdate.value = null
             }
 
             // Continuous Realtime Supabase Sync & OTA Update Check Loop (polls Supabase every 5 seconds)

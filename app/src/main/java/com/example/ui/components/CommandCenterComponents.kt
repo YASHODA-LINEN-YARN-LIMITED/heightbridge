@@ -746,7 +746,7 @@ fun IncidentReportDialog(
                 OutlinedTextField(
                     value = details,
                     onValueChange = { details = it },
-                    label = { Text("Incident Details & Gate Pass") },
+                    label = { Text("Incident Details & Gate Entry No.") },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 2
                 )

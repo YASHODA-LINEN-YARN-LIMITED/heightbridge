@@ -841,7 +841,7 @@ fun ReportsModuleView(
         OutlinedTextField(
             value = searchQuery,
             onValueChange = { searchQuery = it },
-            placeholder = { Text("Filter by Party, Lorry No, Gate Pass...") },
+            placeholder = { Text("Filter by Party, Lorry No, Gate Entry No...") },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier.fillMaxWidth()
@@ -1308,7 +1308,7 @@ fun AuditLogsModuleView(
         OutlinedTextField(
             value = query,
             onValueChange = { query = it },
-            placeholder = { Text("Search audit trail by Gate Pass or Role...") },
+            placeholder = { Text("Search audit trail by Gate Entry No or Role...") },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
             shape = RoundedCornerShape(10.dp),
             modifier = Modifier.fillMaxWidth()

@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.data.model.LorryStatus
 import com.example.data.model.LorryWeighment
 import com.example.ui.theme.IndustrialBlue
 import com.example.ui.theme.StatusGreen
@@ -65,7 +66,8 @@ fun GateOutScreen(
     var outTimeText by remember { mutableStateOf(currentTime) }
     var remarksInput by remember { mutableStateOf("Lorry Out - Weight Clearance Passed") }
 
-    val hasTare = lorry.hasTareRecorded
+    val isDeptVehicle = lorry.remarks?.contains("Department:", ignoreCase = true) == true && !lorry.remarks.contains("Jute", ignoreCase = true)
+    val isClearedForOut = lorry.status == LorryStatus.READY_FOR_GATE_EXIT.name || lorry.unloaded || lorry.hasTareRecorded
     val displayTare = lorry.tareWeight ?: lorry.millTareWeight ?: lorry.electricTareWeight
     val displayGross = lorry.grossWeight ?: lorry.millGrossWeight ?: lorry.electricGrossWeight
     val displayNet = lorry.lowestNetWeight
@@ -140,9 +142,9 @@ fun GateOutScreen(
                                 color = IndustrialBlue
                             )
                             Icon(
-                                imageVector = if (hasTare) Icons.Default.ExitToApp else Icons.Default.Lock,
+                                imageVector = if (isClearedForOut) Icons.Default.ExitToApp else Icons.Default.Lock,
                                 contentDescription = null,
-                                tint = if (hasTare) StatusGreen else StatusRed
+                                tint = if (isClearedForOut) StatusGreen else StatusRed
                             )
                         }
 
@@ -155,7 +157,7 @@ fun GateOutScreen(
 
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        if (!hasTare) {
+                        if (!isClearedForOut) {
                             Card(
                                 shape = RoundedCornerShape(12.dp),
                                 colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF2F2)),
@@ -173,7 +175,7 @@ fun GateOutScreen(
                                         modifier = Modifier.padding(end = 8.dp)
                                     )
                                     Text(
-                                        text = "🛑 GATE EXIT RESTRICTED: Tare Weight not recorded by Mill Weighbridge or Electric Weighbridge. Lorry cannot be allowed OUT without empty Tare Weight!",
+                                        text = "🛑 GATE EXIT RESTRICTED: Vehicle has not received Department / Tare Weight Clearance. Cannot allow vehicle OUT without Department Clearance or Tare Weight!",
                                         style = MaterialTheme.typography.bodySmall,
                                         fontWeight = FontWeight.Bold,
                                         color = StatusRed
@@ -199,7 +201,7 @@ fun GateOutScreen(
                                         modifier = Modifier.padding(end = 8.dp)
                                     )
                                     Text(
-                                        text = "✅ TARE WEIGHT VERIFIED: Mill Tare or Electric Tare Weight recorded. Main Gate exit clearance unlocked!",
+                                        text = "✅ CLEARANCE VERIFIED: Vehicle cleared for Main Gate Exit!",
                                         style = MaterialTheme.typography.bodySmall,
                                         fontWeight = FontWeight.Bold,
                                         color = StatusGreen
@@ -286,7 +288,7 @@ fun GateOutScreen(
                                 }
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(text = "Recorded Tare Wt", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
-                                    Text(text = "${displayTare?.toInt() ?: "NOT RECORDED"} kg", fontWeight = FontWeight.Bold, color = if (hasTare) Color(0xFF111827) else StatusRed)
+                                    Text(text = "${displayTare?.toInt() ?: "NOT RECORDED"} kg", fontWeight = FontWeight.Bold, color = if (isClearedForOut) Color(0xFF111827) else StatusRed)
                                 }
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(text = "Billed Net Wt (Lowest)", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
@@ -334,11 +336,11 @@ fun GateOutScreen(
 
                         Button(
                             onClick = {
-                                if (hasTare) {
+                                if (isClearedForOut) {
                                     onMarkOutClick(lorry.gatePass, remarksInput)
                                 }
                             },
-                            enabled = hasTare,
+                            enabled = isClearedForOut,
                             shape = RoundedCornerShape(14.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = IndustrialBlue,
@@ -350,7 +352,7 @@ fun GateOutScreen(
                                 .testTag("btn_mark_lorry_out")
                         ) {
                             Text(
-                                text = if (hasTare) "Clear & Mark Lorry OUT" else "Gate Out Locked (Missing Tare)",
+                                text = if (isClearedForOut) "Clear & Mark Lorry OUT" else "Gate Out Locked (Missing Clearance)",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White

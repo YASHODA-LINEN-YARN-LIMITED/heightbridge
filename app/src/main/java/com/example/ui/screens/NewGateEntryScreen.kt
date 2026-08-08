@@ -128,7 +128,7 @@ fun NewGateEntryScreen(
                         color = Color.White
                     )
                     Text(
-                        text = "Step 1 of 1 • Vehicle Inflow & Gate Pass Registration",
+                        text = "Step 1 of 1 • Vehicle Inflow & Gate Entry Registration",
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White.copy(alpha = 0.85f)
                     )
@@ -176,7 +176,7 @@ fun NewGateEntryScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = "🔒 Main Gate Policy: Record Vehicle Inflow & Issue Gate Pass. Once submitted, vehicle entry data is locked and cannot be edited by operators until logout or Super Admin authorization.",
+                                text = "🔒 Main Gate Policy: Record Vehicle Inflow & Issue Gate Entry No. Once submitted, vehicle entry data is locked and cannot be edited by operators until logout or Super Admin authorization.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = IndustrialBlue,
                                 fontWeight = FontWeight.SemiBold,

@@ -27,7 +27,7 @@ object ReportExporter {
             val writer = FileOutputStream(file).bufferedWriter()
 
             // Header
-            writer.write("Gate Pass,Vehicle No,Type,Party,Description,Mokam,Marka,Gate Gross (kg),Mill Gross (kg),Elec Gross (kg),Mill Tare (kg),Elec Tare (kg),Net Wt (kg),Status,In Time,Out Time,Date\n")
+            writer.write("Gate Entry No,Vehicle No,Type,Party,Description,Mokam,Marka,Gate Gross (kg),Mill Gross (kg),Elec Gross (kg),Mill Tare (kg),Elec Tare (kg),Net Wt (kg),Status,In Time,Out Time,Date\n")
 
             lorries.forEach { lorry ->
                 val gateGross = lorry.grossWeight ?: 0.0
@@ -130,7 +130,7 @@ object ReportExporter {
 
             // Table Column Headers
             canvas.drawRect(40f, y, 555f, y + 20f, headerBgPaint)
-            canvas.drawText("Gate Pass", 45f, y + 14f, tableHeaderPaint)
+            canvas.drawText("Gate Entry No", 45f, y + 14f, tableHeaderPaint)
             canvas.drawText("Vehicle No", 115f, y + 14f, tableHeaderPaint)
             canvas.drawText("Party Name", 195f, y + 14f, tableHeaderPaint)
             canvas.drawText("Gross (kg)", 335f, y + 14f, tableHeaderPaint)
