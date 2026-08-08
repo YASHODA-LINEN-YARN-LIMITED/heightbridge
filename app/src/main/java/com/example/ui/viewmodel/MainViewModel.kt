@@ -83,6 +83,17 @@ data class SecurityState(
     val isAutoLogoutEnabled: Boolean = true
 )
 
+data class InAppNotification(
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val title: String,
+    val message: String,
+    val timestamp: String,
+    val isRead: Boolean = false,
+    val intendedRole: UserRole,
+    val lorryNumber: String,
+    val gatePass: String
+)
+
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = LorryRepository(application)
     private val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
@@ -133,6 +144,117 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     val allLorriesFlow = repository.allLorries
 
+    val inAppNotifications = MutableStateFlow<List<InAppNotification>>(emptyList())
+    private val notifiedEvents = mutableSetOf<String>()
+
+    fun dismissNotification(id: String) {
+        inAppNotifications.value = inAppNotifications.value.filter { it.id != id }
+    }
+
+    fun markAllNotificationsAsRead() {
+        inAppNotifications.value = inAppNotifications.value.map { it.copy(isRead = true) }
+    }
+
+    private fun addNotification(notif: InAppNotification) {
+        val currentRole = currentUserRole.value
+        if (currentRole == notif.intendedRole || currentRole == UserRole.SUPER_ADMIN) {
+            inAppNotifications.value = listOf(notif) + inAppNotifications.value
+            toastMessage.value = "${notif.title}: ${notif.message}"
+        }
+    }
+
+    private fun initNotificationObserver() {
+        viewModelScope.launch {
+            var isFirstCollection = true
+            allLorriesFlow.collect { lorries ->
+                if (isFirstCollection) {
+                    lorries.forEach { lorry ->
+                        notifiedEvents.add("${lorry.gatePass}_${lorry.status}")
+                    }
+                    isFirstCollection = false
+                } else {
+                    lorries.forEach { lorry ->
+                        val eventKey = "${lorry.gatePass}_${lorry.status}"
+                        if (!notifiedEvents.contains(eventKey)) {
+                            notifiedEvents.add(eventKey)
+                            val notification = determineNotificationForLorry(lorry)
+                            if (notification != null) {
+                                addNotification(notification)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun determineNotificationForLorry(lorry: LorryWeighment): InAppNotification? {
+        val timeStr = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(lorry.updatedAt))
+        return when {
+            lorry.status == LorryStatus.GATE_ENTRY.name && lorry.effectiveDepartment.equals("Jute", ignoreCase = true) -> {
+                InAppNotification(
+                    title = "New Jute Lorry Arrived 🚛",
+                    message = "Lorry ${lorry.lorryNumber} registered at Main Gate. Pending Gross Weightment.",
+                    timestamp = timeStr,
+                    intendedRole = UserRole.MILL_WEIGHTMENT,
+                    lorryNumber = lorry.lorryNumber,
+                    gatePass = lorry.gatePass
+                )
+            }
+            lorry.status == LorryStatus.STORE_PENDING.name || (lorry.status == LorryStatus.GATE_ENTRY.name && lorry.effectiveDepartment.equals("Store", ignoreCase = true)) -> {
+                InAppNotification(
+                    title = "New Store Lorry Arrived 📦",
+                    message = "Lorry ${lorry.lorryNumber} registered at Main Gate. Pending Store verification.",
+                    timestamp = timeStr,
+                    intendedRole = UserRole.STORE,
+                    lorryNumber = lorry.lorryNumber,
+                    gatePass = lorry.gatePass
+                )
+            }
+            lorry.status == LorryStatus.FINISH_GOOD_PENDING.name || (lorry.status == LorryStatus.GATE_ENTRY.name && lorry.effectiveDepartment.equals("Finish Good", ignoreCase = true)) -> {
+                InAppNotification(
+                    title = "New Finish Good Lorry 🏭",
+                    message = "Lorry ${lorry.lorryNumber} registered at Main Gate. Pending Finish Good loading.",
+                    timestamp = timeStr,
+                    intendedRole = UserRole.FINISH_GOOD,
+                    lorryNumber = lorry.lorryNumber,
+                    gatePass = lorry.gatePass
+                )
+            }
+            lorry.status == LorryStatus.OTHER_PENDING.name || (lorry.status == LorryStatus.GATE_ENTRY.name && lorry.effectiveDepartment.equals("Other", ignoreCase = true)) -> {
+                InAppNotification(
+                    title = "New Other Lorry Arrived 🚛",
+                    message = "Lorry ${lorry.lorryNumber} registered at Main Gate for Other department.",
+                    timestamp = timeStr,
+                    intendedRole = UserRole.OTHER,
+                    lorryNumber = lorry.lorryNumber,
+                    gatePass = lorry.gatePass
+                )
+            }
+            lorry.status == LorryStatus.WAITING_FOR_UNLOADING.name && lorry.millGrossWeight != null && lorry.effectiveDepartment.equals("Jute", ignoreCase = true) -> {
+                InAppNotification(
+                    title = "Jute Lorry Ready for Weighment ⚖️",
+                    message = "Lorry ${lorry.lorryNumber} Gross Weight (${lorry.millGrossWeight?.toInt()} kg) saved by Mill. Ready for Electric Weighment.",
+                    timestamp = timeStr,
+                    intendedRole = UserRole.ELECTRIC_WEIGHTMENT,
+                    lorryNumber = lorry.lorryNumber,
+                    gatePass = lorry.gatePass
+                )
+            }
+            lorry.status == LorryStatus.ELECTRIC_GROSS_DONE.name && lorry.effectiveDepartment.equals("Jute", ignoreCase = true) -> {
+                InAppNotification(
+                    title = "Electric Gross Weight Recorded ⚡",
+                    message = "Lorry ${lorry.lorryNumber} Gross Weight (${lorry.electricGrossWeight?.toInt()} kg) recorded by Electric. Ready for Mill Tare Weightment.",
+                    timestamp = timeStr,
+                    intendedRole = UserRole.MILL_WEIGHTMENT,
+                    lorryNumber = lorry.lorryNumber,
+                    gatePass = lorry.gatePass
+                )
+            }
+            else -> null
+        }
+    }
+
     private var lastUserActivityTime = System.currentTimeMillis()
 
     init {
@@ -154,6 +276,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         }
+
+        viewModelScope.launch {
+            currentUserRole.collect { role ->
+                if (role != null) {
+                    val currentLorries = repository.allLorriesList()
+                    val relevantNotifications = mutableListOf<InAppNotification>()
+                    currentLorries.forEach { lorry ->
+                        val notification = determineNotificationForLorry(lorry)
+                        if (notification != null && (notification.intendedRole == role || role == UserRole.SUPER_ADMIN)) {
+                            relevantNotifications.add(notification)
+                        }
+                    }
+                    inAppNotifications.value = relevantNotifications
+                } else {
+                    inAppNotifications.value = emptyList()
+                }
+            }
+        }
+        initNotificationObserver()
     }
 
     fun checkForAppUpdatesManually() {

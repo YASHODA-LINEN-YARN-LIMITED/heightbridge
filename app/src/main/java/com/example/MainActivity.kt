@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
@@ -36,6 +38,8 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Scale
 import androidx.compose.material.icons.filled.SystemUpdate
 import com.example.data.model.remote.AppUpdateDto
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -144,6 +148,8 @@ fun BallyWeighbridgeApp(
 
     val toastMsg by viewModel.toastMessage.collectAsState()
     val availableAppUpdate by viewModel.availableAppUpdate.collectAsState()
+    val notifications by viewModel.inAppNotifications.collectAsState()
+    var showNotificationsDialog by remember { mutableStateOf(false) }
 
     val activity = LocalContext.current as? android.app.Activity
     LaunchedEffect(systemSettings.allowScreenCapture) {
@@ -245,6 +251,36 @@ fun BallyWeighbridgeApp(
                         }
                     },
                     actions = {
+                        val unreadCount = notifications.count { !it.isRead }
+                        Box(contentAlignment = Alignment.TopEnd) {
+                            IconButton(
+                                onClick = { showNotificationsDialog = true },
+                                modifier = Modifier.testTag("top_app_bar_notifications")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Notifications,
+                                    contentDescription = "Notifications",
+                                    tint = MaterialTheme.colorScheme.onPrimary
+                                )
+                            }
+                            if (unreadCount > 0) {
+                                Box(
+                                    modifier = Modifier
+                                        .padding(top = 4.dp, end = 4.dp)
+                                        .size(16.dp)
+                                        .background(Color.Red, shape = CircleShape)
+                                        .align(Alignment.TopEnd),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = unreadCount.toString(),
+                                        color = Color.White,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
                         IconButton(
                             onClick = { viewModel.logout() },
                             modifier = Modifier.testTag("top_app_bar_logout")
@@ -724,6 +760,180 @@ fun BallyWeighbridgeApp(
                             )
                         }
                     }
+                }
+
+                // Floating notification alert banner at the top of the screen
+                var activeBanner by remember { mutableStateOf<com.example.ui.viewmodel.InAppNotification?>(null) }
+                LaunchedEffect(notifications) {
+                    val latestUnread = notifications.firstOrNull { !it.isRead }
+                    if (latestUnread != null && latestUnread.id != activeBanner?.id) {
+                        activeBanner = latestUnread
+                    }
+                }
+
+                activeBanner?.let { notif ->
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                            .align(Alignment.TopCenter)
+                    ) {
+                        Card(
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFEFF6FF)),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+                            border = androidx.compose.foundation.BorderStroke(2.dp, Color(0xFF3B82F6)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Notifications,
+                                    contentDescription = null,
+                                    tint = Color(0xFF2563EB),
+                                    modifier = Modifier.size(28.dp)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = notif.title,
+                                        fontWeight = FontWeight.Bold,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = Color(0xFF1E40AF)
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = notif.message,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color(0xFF1E293B)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                IconButton(
+                                    onClick = { 
+                                        viewModel.dismissNotification(notif.id)
+                                        activeBanner = null 
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Close Banner",
+                                        tint = Color.Gray,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (showNotificationsDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showNotificationsDialog = false },
+                        title = {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Realtime Dispatch Alerts", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                                TextButton(onClick = { viewModel.markAllNotificationsAsRead() }) {
+                                    Text("Mark all read", fontSize = 12.sp, color = roleThemeColor)
+                                }
+                            }
+                        },
+                        text = {
+                            if (notifications.isEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 32.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Icon(
+                                            imageVector = Icons.Default.Notifications,
+                                            contentDescription = null,
+                                            tint = Color.LightGray,
+                                            modifier = Modifier.size(48.dp)
+                                        )
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text("No active notifications", color = Color.Gray, style = MaterialTheme.typography.bodyMedium)
+                                    }
+                                }
+                            } else {
+                                androidx.compose.foundation.lazy.LazyColumn(
+                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    items(notifications.size) { index ->
+                                        val notif = notifications[index]
+                                        Card(
+                                            shape = RoundedCornerShape(12.dp),
+                                            colors = CardDefaults.cardColors(
+                                                containerColor = if (notif.isRead) Color(0xFFF8FAFC) else Color(0xFFEFF6FF)
+                                            ),
+                                            border = androidx.compose.foundation.BorderStroke(
+                                                width = 1.dp,
+                                                color = if (notif.isRead) Color(0xFFE2E8F0) else Color(0xFFBFDBFE)
+                                            ),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Column(modifier = Modifier.padding(12.dp)) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Text(
+                                                        text = notif.title,
+                                                        fontWeight = FontWeight.Bold,
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        color = if (notif.isRead) Color.DarkGray else Color(0xFF1E40AF)
+                                                    )
+                                                    Text(
+                                                        text = notif.timestamp,
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = Color.Gray
+                                                    )
+                                                }
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                Text(
+                                                    text = notif.message,
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = Color.DarkGray
+                                                )
+                                                Spacer(modifier = Modifier.height(8.dp))
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.End
+                                                ) {
+                                                    TextButton(
+                                                        onClick = { viewModel.dismissNotification(notif.id) },
+                                                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                                    ) {
+                                                        Text("Dismiss", fontSize = 11.sp, color = Color.Gray)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        confirmButton = {
+                            Button(
+                                onClick = { showNotificationsDialog = false },
+                                colors = ButtonDefaults.buttonColors(containerColor = roleThemeColor)
+                            ) {
+                                Text("Close")
+                            }
+                        }
+                    )
                 }
             }
         }
